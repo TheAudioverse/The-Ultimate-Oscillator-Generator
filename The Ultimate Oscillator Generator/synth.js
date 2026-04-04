@@ -90,10 +90,10 @@ class UOsc {
             if ("_pull" in this._arrayParams || "_partialFrequencyInverter" in this._arrayParams) {
                 Object.keys(this._arrayParams).forEach(_key => {
                     if (_key == "_pull") {
-                        useRealNums = this._params._pull.some(v => v % 1 != 0);
+                        useRealNums = this._arrayParams._pull.some(v => v % 1 != 0);
                         return;
                     } else if (_key == "_partialFrequencyInverter") {
-                        useRealNums = this._params._partialFrequencyInverter.some(v => v != 0);
+                        useRealNums = this._arrayParams._partialFrequencyInverter.some(v => v != 0);
                         return;
                     }
                 });
@@ -101,10 +101,10 @@ class UOsc {
             if (useRealNums == false || "_pull" in elseOsc._arrayParams || "_partialFrequencyInverter" in elseOsc._arrayParams) {
                 Object.keys(elseOsc._arrayParams).forEach(_key => {
                     if (_key == "_pull") {
-                        useRealNums = elseOsc._params._pull.some(v => v % 1 != 0);
+                        useRealNums = elseOsc._arrayParams._pull.some(v => v % 1 != 0);
                         return;
                     } else if (_key == "_partialFrequencyInverter") {
-                        useRealNums = elseOsc._params._partialFrequencyInverter.some(v => v != 0);
+                        useRealNums = elseOsc._arrayParams._partialFrequencyInverter.some(v => v != 0);
                         return;
                     }
                 });
