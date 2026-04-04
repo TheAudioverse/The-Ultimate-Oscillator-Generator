@@ -102,18 +102,14 @@ function calcOscillatorPartials(osc, sampleRate, opts = {}) {
     }
 
     if (count > 0) {
-        let sumSq = 0;
+        let peak = 0;
         for (let i = 0; i < count; i++) {
             const a = amps[i];
-            if (!Number.isFinite(a)) {
-                amps[i] = 0;
-                continue;
-            }
-            sumSq += a * a;
+            if (a > peak) peak = a;
         }
-        const norm = Math.sqrt(sumSq);
-        if (norm > 0 && norm !== 1) {
-            const inv = 1 / norm;
+
+        if (peak > 0 && peak !== 1) {
+            const inv = 1 / peak;
             for (let i = 0; i < count; i++) amps[i] *= inv;
         }
     }
