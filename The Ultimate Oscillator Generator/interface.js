@@ -130,7 +130,7 @@ function calcOscillatorPartials(osc, sampleRate, opts = {}) {
 async function setupUOSynth(attempts) {
     if (attempts < 5) {
         try {
-            await synthCtx.audioWorklet.addModule('synth.js');
+            await synthCtx.audioWorklet.addModule('The Ultimate Oscillator Generator/synth.js');
             console.log('Audio worklet module loaded.');
             uoSynthNode = new AudioWorkletNode(synthCtx, 'uo-synth');
             uoSynthNode.connect(gainNode).connect(compressor).connect(oscAnalyser).connect(synthCtx.destination);
