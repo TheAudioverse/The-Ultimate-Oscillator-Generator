@@ -10,6 +10,11 @@ const smoothing = (x) => {
     return 2 ** (-((x / 4) ** 2));
 }
 
+if (window.visualViewport.height < 600) {
+    const infoParagraph = document.getElementsByClassName('info-paragraph')[0];
+    infoParagraph.style.display = 'none';
+}
+
 window.addEventListener('resize', () => {
     if (window.visualViewport.height < 600) {
         const infoParagraph = document.getElementsByClassName('info-paragraph')[0];
