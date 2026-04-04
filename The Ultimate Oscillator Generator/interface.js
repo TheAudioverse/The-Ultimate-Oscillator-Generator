@@ -209,16 +209,16 @@ setupUOSynth(0).then(async () => {
                 break;
             case "Load Oscillator":
                 synthParamsInputHTMLforUOSynth[1].value = event.data.parameters._partialCount;
-                synthParamsInputHTMLforUOSynth[2].value = event.data.parameters._damping;
-                synthParamsInputHTMLforUOSynth[3].value = event.data.parameters._wavetype;
-                synthParamsInputHTMLforUOSynth[4].value = event.data.parameters._shift;
-                synthParamsInputHTMLforUOSynth[5].value = event.data.parameters._pull;
-                synthParamsInputHTMLforUOSynth[6].value = event.data.parameters._partialFrequencyInverter;
-                synthParamsInputHTMLforUOSynth[7].value = event.data.parameters._partialComb;
-                synthParamsInputHTMLforUOSynth[8].value = event.data.parameters._partialPhaseShifter;
-                synthParamsInputHTMLforUOSynth[9].value = event.data.parameters._pwmMix;
-                synthParamsInputHTMLforUOSynth[10].value = event.data.parameters._pwmPhase;
-                synthParamsInputHTMLforUOSynth[11].value = event.data.parameters._flangingPhase;
+                synthParamsInputHTMLforUOSynth[2].value = event.data.arrayParameters._damping ? `[${event.data.arrayParameters._damping}]` : event.data.parameters._damping;
+                synthParamsInputHTMLforUOSynth[3].value = event.data.arrayParameters._wavetype ? `[${event.data.arrayParameters._wavetype}]` : event.data.parameters._wavetype;
+                synthParamsInputHTMLforUOSynth[4].value = event.data.arrayParameters._shift ? `[${event.data.arrayParameters._shift}]` : event.data.parameters._shift;
+                synthParamsInputHTMLforUOSynth[5].value = event.data.arrayParameters._pull ? `[${event.data.arrayParameters._pull}]` : event.data.parameters._pull;
+                synthParamsInputHTMLforUOSynth[6].value = event.data.arrayParameters._partialFrequencyInverter ? `[${event.data.arrayParameters._partialFrequencyInverter}]` : event.data.parameters._partialFrequencyInverter;
+                synthParamsInputHTMLforUOSynth[7].value = event.data.arrayParameters._partialComb ? `[${event.data.arrayParameters._partialComb}]` : event.data.parameters._partialComb;
+                synthParamsInputHTMLforUOSynth[8].value = event.data.arrayParameters._partialPhaseShifter ? `[${event.data.arrayParameters._partialPhaseShifter}]` : event.data.parameters._partialPhaseShifter;
+                synthParamsInputHTMLforUOSynth[9].value = event.data.arrayParameters._pwmMix ? `[${event.data.arrayParameters._pwmMix}]` : event.data.parameters._pwmMix;
+                synthParamsInputHTMLforUOSynth[10].value = event.data.arrayParameters._pwmPhase ? `[${event.data.arrayParameters._pwmPhase}]` : event.data.parameters._pwmPhase;
+                synthParamsInputHTMLforUOSynth[11].value = event.data.arrayParameters._flangingPhase ? `[${event.data.arrayParameters._flangingPhase}]` : event.data.parameters._flangingPhase;
                 selectedOscName = event.data.oscName;
                 break;
             case "updateSelectedOsc":

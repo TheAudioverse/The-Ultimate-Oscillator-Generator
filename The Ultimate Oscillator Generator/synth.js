@@ -165,7 +165,7 @@ class UOSynth extends AudioWorkletProcessor {
                 case "selectOsc":
                     this._selectedOsc = event.data.oscName;
                     if (this._selectedOsc in this._oscStructure) {
-                        this.port.postMessage({ type: "Load Oscillator", oscName: this._selectedOsc, parameters: this._oscStructure[this._selectedOsc]._params });
+                        this.port.postMessage({ type: "Load Oscillator", oscName: this._selectedOsc, parameters: this._oscStructure[this._selectedOsc]._params, arrayParameters: this._oscStructure[this._selectedOsc]._arrayParams });
                         this.port.postMessage({ type: "givenOscillator", oscillator: this._oscStructure[this._selectedOsc] });
                     } else {
                         this.port.postMessage({ type: "error", message: "No such oscillator exists." });
