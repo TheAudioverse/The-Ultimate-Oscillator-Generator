@@ -10,6 +10,13 @@ const smoothing = (x) => {
     return 2 ** (-((x / 4) ** 2));
 }
 
+window.addEventListener('resize', () => {
+    if (window.visualViewport.height < 600) {
+        const infoParagraph = document.getElementsByClassName('info-paragraph')[0];
+        infoParagraph.style.display = 'none';
+    }
+});
+
 //Creates audio context.
 const synthCtx = new AudioContext({
   latencyHint: "interactive",
