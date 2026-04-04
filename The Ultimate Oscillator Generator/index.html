@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" style="overflow: hidden;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Ultimate Periodic Waveform Generator</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <script src="interface.js" defer></script>
+    <link rel="stylesheet" href="website-visuals.css">
+</head>
+<body>
+  <div class="main" style="
+    z-index: 0;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-content: stretch;
+    justify-content: space-between;
+    align-items: stretch;">
+    <div style="height: 80vh;
+        display: flex;
+        flex-wrap: nowrap;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: stretch;">
+      <div class="header">
+      <h1 class="title">The Ultimate Oscillator Generator</h1>
+      </div>
+      <p class="info-paragraph">
+        This program is designed to make cool sounds. Click the button below to access the manual.
+      </p>
+      <div class="manual-button-container" style="
+        display: flex;
+        justify-content: center;
+      ">
+        <button id="the-manual-button">The Manual</button>
+      </div>
+      <h2 class="title">Synth Parameters</h2>
+      
+      <div class="synth-section" style="
+        display: flex;
+        flex-wrap: nowrap;
+        flex-direction: row;
+        align-content: center;
+        justify-content: space-evenly;
+        align-items: center;">
+        <div style="
+            width: 400px;
+            display: flex;
+            align-content: center;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: flex-start;">
+          <canvas id="occiloscope-canvas" width="400px" height="208px" style="border: 2px solid rgb(0, 185, 185); margin-bottom: 8px;"></canvas>
+          <div style="
+            width: 404px;
+            margin: 0;
+            display: flex;
+            justify-content: space-between;">
+              <button class="export-button" id="export-wav-button" style="margin: 0;">Export .wav</button>
+              <button class="export-button" id="manage-session-button" style="margin: 0;">Manage session</button>
+              <button class="export-button" id="export-session-button" style="margin: 0;">Export session</button>
+              <button class="export-button" id="import-session-button" style="margin: 0;">Import session</button>
+          </div>
+        </div>
+        <div class="synth-parameter-text-box-container" style="
+            width: 35.625vw;
+            display: flex;
+            align-content: center;
+            justify-content: space-evenly;
+            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: center;">
+          <div class="preset-load-container" style="
+            display: flex;
+            align-content: center;
+            justify-content: space-evenly;">
+            <input name="synth-name-input" class="synth-info-text-input" type="text" placeholder="Oscillator name.">
+            <button class="load-osc-btn" id="load-osc-btn">Load Oscillator</button>
+          </div>
+          <div name="synth-main-parameter-text-box-container" class="synth-parameter-text-box-sub-container">
+            <input name="synth-param-'amp'" class="synth-param-range-input" type="range" min="0" max="2" value="1" step="0.01">
+            <input name="synth-param-'partials'" class="synth-param-text-input" type="text" placeholder="No. partials">
+            <input name="synth-param-'damping'" class="synth-param-text-input" type="text" placeholder="Partial Damping">
+          </div>
+          <div name="synth-partial-ratio-parameter-text-box-container" class="synth-parameter-text-box-sub-container">
+            <input name="synth-param-'wavetype'" class="synth-param-text-input" type="text" placeholder="Wavetype">
+            <input name="synth-param-'shift'" class="synth-param-text-input" type="text" placeholder="Partial Shift">
+            <input name="synth-param-'pull'" class="synth-param-text-input" type="text" placeholder="Partial Pull">
+          </div>
+          <div name="synth-misc-parameter-text-box-container-1" class="synth-parameter-text-box-sub-container">
+            <input name="synth-param-'partialFrequencyInverter'" class="synth-param-text-input" type="text" placeholder="Partial Frequency Inverter">
+            <input name="synth-param-'partialComb'" class="synth-param-text-input" type="text" placeholder="Partial Comb">
+            <input name="synth-param-'partialPhaseShift'" class="synth-param-text-input" type="text" placeholder="Partial Phase Shift">
+          </div>
+          <div name="synth-misc-parameter-text-box-container-2" class="synth-parameter-text-box-sub-container">
+            <input name="synth-param-'pwmMix'" class="synth-param-text-input" type="text" placeholder="PWM Effect Mix">
+            <input name="synth-param-'pwmPhase'" class="synth-param-text-input" type="text" placeholder="PWM Phase">
+            <input name="synth-param-'flangingPhase'" class="synth-param-text-input" type="text" placeholder="Flange Phase">
+          </div>
+        <div class="set-default-btn-container" style="
+            margin-top: 16px;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;">
+          <button class="set-default-params-btn" id="set-default-params-btn">Set default parameters</button>
+          <select id="visualOscDrawType" class="dropdown">
+            <option value="paused">Paused</option>
+            <option value="oscilloscope" selected>Oscilloscope</option>
+            <option value="fourierOscilloscope">Fourier Oscilloscope</option>
+          </select>
+        </div>
+        <div class="synthesize-btn-container">
+          <button class="save-preset-btn" id="save-preset-btn">Synthesize & Save Oscillator</button>
+          <button class="save-preset-btn-2" id="save-preset-btn-2">Fractalize & Save Oscillator</button>
+        </div>
+        </div>
+        <div style="
+            width: 400px;
+            display: flex;
+            align-content: center;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: flex-end;">
+          <canvas id="graph-canvas" width="400px" height="208px" style="border: 2px solid rgb(0, 185, 185); margin-bottom: 8px;"></canvas>
+          <select id="visualization-select" class="dropdown" style="margin: 0;">
+            <option value="oscilloscope">Oscilloscope</option>
+            <option value="histogram">Histogram</option>
+            <option value="spectrogram">Spectrogram</option>
+          </select>
+        </div>
+      </div>
+      <div style="
+        max-height: 12px;
+        margin: 0;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        align-items: center">
+        <a id="Link" href="" style="visibility: hidden;">Click to download.</a>
+      </div>
+    </div>
+    <div class="keyboard-buttons-container" style="
+      width: 100vw;
+      display: flex;
+      justify-content: center;
+      align-items: center;">
+      <div style="display: flex; width: 1280px;">
+        <button class="keybtn-type-1" id="-12"><br><br><br><br><br>z</button>
+        <button class="keybtn-type-1" id="-10"><br><br><br><br><br>x</button>
+        <button class="keybtn-type-1" id="-8"><br><br><br><br><br>c</button>
+        <button class="keybtn-type-1" id="-7"><br><br><br><br><br>v</button>
+        <button class="keybtn-type-1" id="-5"><br><br><br><br><br>b</button>
+        <button class="keybtn-type-1" id="-3"><br><br><br><br><br>n</button>
+        <button class="keybtn-type-1" id="-1"><br><br><br><br><br>m</button>
+        <button class="keybtn-type-1" id="0"><br><br><br><br><br>q & ,</button>
+        <button class="keybtn-type-1" id="2"><br><br><br><br><br>w & .</button>
+        <button class="keybtn-type-1" id="4"><br><br><br><br><br>e & /</button>
+        <button class="keybtn-type-1" id="5"><br><br><br><br><br>r</button>
+        <button class="keybtn-type-1" id="7"><br><br><br><br><br>t</button>
+        <button class="keybtn-type-1" id="9"><br><br><br><br><br>y</button>
+        <button class="keybtn-type-1" id="11"><br><br><br><br><br>u</button>
+        <button class="keybtn-type-1" id="12"><br><br><br><br><br>i</button>
+        <button class="keybtn-type-1" id="14"><br><br><br><br><br>o</button>
+        <button class="keybtn-type-1" id="16"><br><br><br><br><br>p</button>
+        <button class="keybtn-type-1" id="17"><br><br><br><br><br>[</button>
+        <button class="keybtn-type-1" id="19"><br><br><br><br><br>]</button>
+        <button class="keybtn-type-1" id="21"><br><br><br><br><br>\</button>
+        <button class="keybtn-type-2" id="-11" style="margin-left: -1240px;"><br><br><br>s</button>
+        <button class="keybtn-type-2" id="-9" style="margin-right: 80px;"><br><br><br>d</button>
+        <button class="keybtn-type-2" id="-6"><br><br><br>g</button>
+        <button class="keybtn-type-2" id="-4"><br><br><br>h</button>
+        <button class="keybtn-type-2" id="-2" style="margin-right: 80px;"><br><br><br>j & `</button>
+        <button class="keybtn-type-2" id="1"><br><br><br>2 & l</button>
+        <button class="keybtn-type-2" id="3" style="margin-right: 80px;"><br><br><br>3 & ;</button>
+        <button class="keybtn-type-2" id="6"><br><br><br>5</button>
+        <button class="keybtn-type-2" id="8"><br><br><br>6</button>
+        <button class="keybtn-type-2" id="10" style="margin-right: 80px;"><br><br><br>7</button>
+        <button class="keybtn-type-2" id="13"><br><br><br>9</button>
+        <button class="keybtn-type-2" id="15" style="margin-right: 80px;"><br><br><br>0</button>
+        <button class="keybtn-type-2" id="18"><br><br><br>=</button>
+        <button class="keybtn-type-2" id="20" style="font-size: 8px;"><br><br><br>backspace</button>
+      </div>
+    </div>
+  </div>
+  <div class="popup-box-container" id="session-manager-popup-box" style="
+    z-index: 1;
+    display: none;
+    flex-wrap: wrap;
+    flex-direction: row;
+    align-content: center;
+    justify-content: center;
+    align-items: center;">
+    <div class="popup-box-background">
+
+    </div>
+    <div class="popup-box">
+      <button class="close-button">X</button>
+        <h2 class="title">Session Manager</h2>
+        <p class="popup-text">
+          This is the session manager.
+        </p>
+      <div class="scrollable-content" style="width: 320px; height: 256px;">
+        <ul class="popup-text" id="session-manager-list" style="
+          list-style-type: none;
+          text-align: left;
+          margin: 0;
+          padding: 0;">
+
+        </ul>
+      </div>
+      <div style="
+        background-color: rgb(24, 24, 26);
+        width: 320px;
+        height: 80px;
+        margin-top: 16px;
+        margin-left: 20px;
+        border: 1px rgb(0, 185, 185) solid;
+        border-radius: 2px;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-content: space-between;">
+        <div style="width: 320px;">
+          <p class="popup-text" id="prompt-text" style="
+            width: 100%;">
+            Lorem ipsum ..
+          </p>
+        </div>
+        <div id="prompt-input-elements" style="
+          width: 100%;
+          height: 32px;
+          flex-direction: row;
+          display: flex;
+          align-content: center;
+          justify-content: space-evenly;
+          align-items: center;">
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="popup-box-container" id="manual-container" style="
+    z-index: 1;
+    display: none;
+    flex-wrap: wrap;
+    flex-direction: row;
+    align-content: center;
+    justify-content: center;
+    align-items: center;">
+    <div class="popup-box-background">
+
+    </div>
+    <div class="popup-box">
+      <button class="close-button">X</button>
+      <audio class="manual-read-aloud" controls src="sam.wav"></audio>
+      <div class="scrollable-content" style="
+      width: 300px;
+      height: 324px;
+      padding: 10px;">
+        <p class="popup-text">
+          This is the manual for The Ultimate Oscillator Generator.<br>
+          <br>
+          This manual will go over all the different UI elements and how to use this thing.
+          Starting with UI elements, the blue boxes toward the edges of the screen are monitors. The one on the left is for precise viewing of your beautiful oscillator; it scrolls slowly over time so you can view even the non-periodic oscillators precisely. The one on the right is for audio monitoring. There is a dropdown below it to switch its visual mode between oscilloscope, histogram, and spectrogram.
+          We'll get to all of the empty textboxes in the middle later.<br>
+          <br>
+          You can create multiple oscillators to switch between them or for fractalization. There are two textboxes and three buttons for navigating this system.
+          The textbox is for specifying the name of the oscillator that you want to save or load. If you want to create multiple oscillators, make sure each name is unique, or it will overwrite the oscillator with the same name. In most cases, that is the one that you're currently editing. To load a previous oscillator, just type its exact name and press the load button. To synthesize (and save) an oscillator, just press the button that says synthesize & save. Don't worry about the fractal button for now.<br>
+          <br>
+          Below the left monitor are some export options. One says "Export .wav," which will export a high-quality, 48khz samplerate, 1-second-long version of your oscillator for use in standard DAWs. This doesn't work for every oscillator, as some are non-periodic. So there is another export option called "export session" to save all oscillators you've made into one file for later import in another session. A session includes all unique oscillators that you've made. This save file is of the JSON format.
+          Naturally, if you can export save files, you also be able to import saves as well! The button to the right of the export button is the import button. When you import a save, it will take some time to resynthesize all of your oscillators, and then it will show an alert that tells you all of the names of the oscillators so you can load them.
+          There is also a manage session button so you can rename and delete oscillators.<br>
+          <br>
+          At the very bottom is a virtual keyboard. You can obviously touch it so it plays the oscillator, but there are also keyboard button names on each key, so you can play with your keyboard.
+          This program also takes MiDi intput, so you can play using a piano keyboard... If you have one...<br>
+          <br>
+          Now, for the actual oscillator parameters, there are three classes of parameters. The frequency ratio sequence, selective sequence editing, and PWM (pulse width modulation). There are also 2 bonus parameters.<br>
+          <br>
+          The slider under the oscillator name textbox controls the master volume, and the 2 parameters next to it are how many partials are in the oscillator and the partial amplitude damping.
+          The base amplitude of each partial is the reciprocal of the absolute value of its frequency. (If the absolute value is less than 1, it's just the frequency, and if the absolute value is 0, then the amplitude is 0). This is if damping is 1.
+          Damping each base amplitude to some power (the input of the parameter). If damping &gt; 1, then the partials are softened; if damping &lt; 1, then the partials are brightened. If damping = 0, every partial has the same pre-comb, pre-pwm amplitude. If damping is negative, all partials become louder than the base partial.<br>
+          <br>
+          The top 3 parameters control the frequency ratio sequence of the oscillator. Wavetype (wavebase is a little more accurate) controls the first ratio in the sequence. In most cases, this will be 1.
+          Shift linearly changes the spacing between the partial frequencies. If Shift = Wavetype, then the oscillator is a sawtooth wave. If Shift is double the Wavetype, then the oscillator is a square wave. If Shift &lt; Wavetype, then the oscillator will sound vaguely like a Sawtooth wave. If Shift &gt; Wavetype, then the oscillator will sound vaguely like a Square wave. This is if pull is positive 1. If pull is negative one, then the sign of every other partial will flip, and some partials won't be evenly spaced. Making wavetype or shift negative does not change anything audibly, as this would only change the phase of the partial.
+          If the shift value is an integer, then the oscillator will be of standard wavelength. Standard wavelength being 2π or 48k samples. If shift is a rational, then the oscillator will have a wavelength of the denominator of the simplified fraction of wavetype / shift times standard wavelength. If shift is irrational, then the oscillator will never repeat.
+          Pull exponentially changes the spacing between the partial frequencies. If pull is an integer, the oscillator will be a standard wavelength oscillator. If pull is a rational, the oscillator will be longer than of standard wavelength. It would likely still be periodic, but not for a long time, as partial count increases. If pull is irrational, then the oscillator won't repeat.
+          (For the more technical users) The frequency sequence is defined as F = w + (sk + 1)p^k - 1. w being wavetype, s being shift, and p being pull, and k being the partial index. The - 1 at the end is to make sure the first ratio is actually the wavetype, since the exponential term would add one.
+          If wavetype is 1 and pull is 0, you can get exactly exponentially spaced partials. So for pull, if you input an expression of the form i ** (s / d), where s is the number of semitones you want to move from the base note, d is the divisions of the octave, and i is the interval that the "octave" is.
+          So if the expression is 2 ** (7 / 12), you get a stack of fifth intervals in 12 edo (12 equal divisions of 1 octave, where the octave is double the base frequency). The ** is the standard exponentiation operator in JavaScript (instead of ^).<br>
+          <br>
+          Enough yapping about frequencies and ratios, next section!
+          The three parameters under the frequency ratio sequence parameters are the selective sequence editing parameters. They pick out certain partials by if they're a multiple of n (input of any of these parameters) and change certain properties of that partial. Non-integer inputs for these parameters don't work properly, and likely won't work at all.
+          Partial frequency inverter takes a certain partial's frequency and take it's reciprocal. (Making it negative won't change anything audibly.) This is the same as subpartials (more accurately, undertones). Instead of multiples, they're divisions of the fundamental frequency.
+          Partial amplitude comb takes a certain partial's amplitude and sets it to 0. This creates the step wave family, and it's as close to pulse waves as you can be, without actually being a pulse wave.
+          Partial phase shift takes a certain partial's phase and shifts it by π. The only reason this is here is to make triangle waves possible.
+          If damping = 2, shift = 2, and partial phase shift = 2, then the oscillator you get is a perfect triangle wave.<br>
+          <br>
+          Final section of parameters! The last 3 parameters control pulse width modulation (PWM). The last 2 parameters (PWM phase and Flange phase) want their parameters' units to be in degrees.
+          The PWM formula is modeled for the subtraction of 2 sawtooth waves, but one of them is phase-shifted. The last parameter (which is a flanger*) is the same thing, but you add instead of subtract.
+          PWM mix controls how much of an effect the PWM phases have on the sound. This parameter was originally designed to be either 0 or 1, but it can be any number, and this will create some wild-looking results.
+          PWM phase controls how phase-shifted the "second oscillator" is, with an offset of 180°. That's the best description I can give you, because this has to be general. This PWM formula works on all oscillators, not just sawtooths.
+          Flange phase duplicates the entire oscillator and shifts it by some offset (in °). A flange phase of 0 or 360m are the same, and a phase of 180m doubles the frequency of the oscillator (because it cancels all odd partals). m is just any integer besides 0.
+          You'll get regular pulse waves if wavetype, shift, and pull are all 1; else, you'll get something else. The auditory effect won't be as strong if the partials are spaced too far apart.<br>
+          <br>
+          So remember when I said, "Don't worry about the fractal button yet?" Now you can worry about it. This is by far the most interesting effect. Fractal synthesis takes one oscillator and gives its partials to each of the partials of another oscillator. Another way to explain it is building an oscillator out of another non-sinusoidal oscillator. To do this here, just press the Fractalize & Save button. Then it will turn into a textbox. Put the name of the modulating oscillator in this textbox and press synthesize & save. You can also use the name of the current oscillator as the modulating oscillator name (even if it isn't synthesized yet).
+          This effect usually would make a periodic oscillator brighter if fractalized with itself, but you can make some cool effects with this. For example, if you fractalize a sawtooth and a stack of fifths, you'll get an oscillator that plays a bunch of sawtooth waves whose frequencies are all perfect fifths apart from each other!<br>
+          <br>
+          There are 2 more things to cover. The set default params button sets all parameters to make a regular sawtooth wave. The drop-down next to it changes the visual mode of the left monitor. Usually, it would show a scrolling oscillator (sum of sine/cosine waves), but it can also show each sine wave that makes up that oscillator. You can also pause it if you'd like.<br>
+          <br>
+          Miscellaneous things now. You can type a few constants into each parameter textbox (except partialCount). These include: π (π, pi), e (Euler's Number; e), and the golden ratio (φ, phi, gr).
+          Any valid JavaScript code will work in these parameter textboxes (also except for partialCount). I've heard that there are risks to this, but as long as you don't somehow break the program, you'll be fine.
+          You can also type in the parameters as arrays of numbers. If you do this, the synth will act as if the parameter's value changes with the partial index. For more fine control. Probably most useful with the selective sequence editing parameters.<br>
+          <br>
+          That's all, folks!
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
