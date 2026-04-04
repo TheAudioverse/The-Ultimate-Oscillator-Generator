@@ -941,7 +941,7 @@ setupUOSynth(0).then(async () => {
 
     let isRecording = false;
 
-    document.getElementById('record-wav-button').addEventListener('click', () => {
+    const recordButton = () => {
         if (!uoSynthNode) {
             alert("You can't record right now, try clicking somewhere..");
             return;
@@ -953,14 +953,19 @@ setupUOSynth(0).then(async () => {
         recordBtn.innerText = 'Recording...';
         recordBtn.style.backgroundColor = 'rgb(255, 0, 0)';
 
-        recordBtn.addEventListener('click', () => {
+        const stopRecordingFunction = () => {
             if (!isRecording) return;
             uoSynthNode.port.postMessage({ type: 'stopRecording' });
             isRecording = false;
             recordBtn.innerText = 'Record .wav';
             recordBtn.style.backgroundColor = 'rgb(24, 24, 26)';
-        });
-    });
+            recordBtn.removeEventListener('click', recordButton);
+            recordBtn.removeEventListener('click', stopRecordingFunction);
+            recordBtn.addEventListener('click', recordButton);
+        }
+        recordBtn.addEventListener('click', stopRecordingFunction);
+    }
+    document.getElementById('record-wav-button').addEventListener('click', recordButton);
 
     function buildSessionObject(oscStructure) {
         const session = {

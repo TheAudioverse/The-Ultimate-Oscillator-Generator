@@ -273,6 +273,8 @@ class UOSynth extends AudioWorkletProcessor {
                     break;
                 case "startRecording":
                     this._isRecording = true;
+                    this._recordArray = [];
+                    this._recordingMaxAmp = 1;
                     break;
                 case "stopRecording":
                     this._isRecording = false;
