@@ -145,927 +145,931 @@ async function setupUOSynth(attempts) {
 }
 
 window.addEventListener('pointerdown', () => {
-    setupUOSynth(0).then(async () => {
-        let selectedOscName = '';
-        let fractalSynthesis = false;
-        let oscStructure = null;
-        let oscillatorSamplesArray = null;
-        let oscillatorMaxAmp = 1;
-        let visualSampleCount = 400;
-        let visualOscRAF;
-        let drawOscVisualVersion = 0;
-        let visualOscDrawType = "oscilloscope";
-        let visualOscScalar = 125;
+    if (synthCtx.state === 'suspended') {
+        synthCtx.resume();
+    }
+});
 
-        const e = Math.E;
-        const π = Math.PI;
-        const pi = Math.PI;
-        const gr = (1 + Math.sqrt(5)) / 2;
-        const phi = (1 + Math.sqrt(5)) / 2;
-        const φ = (1 + Math.sqrt(5)) / 2;
-        
-        const synthParamsInputHTMLforUOSynth = [
-            document.getElementsByName(`synth-param-'amp'`)[0],
-            document.getElementsByName(`synth-param-'partials'`)[0],
-            document.getElementsByName(`synth-param-'damping'`)[0],
-            document.getElementsByName(`synth-param-'wavetype'`)[0],
-            document.getElementsByName(`synth-param-'shift'`)[0],
-            document.getElementsByName(`synth-param-'pull'`)[0],
-            document.getElementsByName(`synth-param-'partialFrequencyInverter'`)[0],
-            document.getElementsByName(`synth-param-'partialComb'`)[0],
-            document.getElementsByName(`synth-param-'partialPhaseShift'`)[0],
-            document.getElementsByName(`synth-param-'pwmMix'`)[0],
-            document.getElementsByName(`synth-param-'pwmPhase'`)[0],
-            document.getElementsByName(`synth-param-'flangingPhase'`)[0],
-        ];
+setupUOSynth(0).then(async () => {
+    let selectedOscName = '';
+    let fractalSynthesis = false;
+    let oscStructure = null;
+    let oscillatorSamplesArray = null;
+    let oscillatorMaxAmp = 1;
+    let visualSampleCount = 400;
+    let visualOscRAF;
+    let drawOscVisualVersion = 0;
+    let visualOscDrawType = "oscilloscope";
+    let visualOscScalar = 125;
 
-        uoSynthNode.port.onmessage = async (event) => {
-            console.log('Message from worklet:', event.data);
+    const e = Math.E;
+    const π = Math.PI;
+    const pi = Math.PI;
+    const gr = (1 + Math.sqrt(5)) / 2;
+    const phi = (1 + Math.sqrt(5)) / 2;
+    const φ = (1 + Math.sqrt(5)) / 2;
+    
+    const synthParamsInputHTMLforUOSynth = [
+        document.getElementsByName(`synth-param-'amp'`)[0],
+        document.getElementsByName(`synth-param-'partials'`)[0],
+        document.getElementsByName(`synth-param-'damping'`)[0],
+        document.getElementsByName(`synth-param-'wavetype'`)[0],
+        document.getElementsByName(`synth-param-'shift'`)[0],
+        document.getElementsByName(`synth-param-'pull'`)[0],
+        document.getElementsByName(`synth-param-'partialFrequencyInverter'`)[0],
+        document.getElementsByName(`synth-param-'partialComb'`)[0],
+        document.getElementsByName(`synth-param-'partialPhaseShift'`)[0],
+        document.getElementsByName(`synth-param-'pwmMix'`)[0],
+        document.getElementsByName(`synth-param-'pwmPhase'`)[0],
+        document.getElementsByName(`synth-param-'flangingPhase'`)[0],
+    ];
 
-            switch (event.data.type) {
-                case "error":
-                    console.log(event.data.message);
-                    alert(event.data.message);
-                    break;
-                case "alert":
-                    alert(event.data.message);
-                    break;
-                case "Load Oscillator":
-                    synthParamsInputHTMLforUOSynth[1].value = event.data.parameters._partialCount;
-                    synthParamsInputHTMLforUOSynth[2].value = event.data.parameters._damping;
-                    synthParamsInputHTMLforUOSynth[3].value = event.data.parameters._wavetype;
-                    synthParamsInputHTMLforUOSynth[4].value = event.data.parameters._shift;
-                    synthParamsInputHTMLforUOSynth[5].value = event.data.parameters._pull;
-                    synthParamsInputHTMLforUOSynth[6].value = event.data.parameters._partialFrequencyInverter;
-                    synthParamsInputHTMLforUOSynth[7].value = event.data.parameters._partialComb;
-                    synthParamsInputHTMLforUOSynth[8].value = event.data.parameters._partialPhaseShifter;
-                    synthParamsInputHTMLforUOSynth[9].value = event.data.parameters._pwmMix;
-                    synthParamsInputHTMLforUOSynth[10].value = event.data.parameters._pwmPhase;
-                    synthParamsInputHTMLforUOSynth[11].value = event.data.parameters._flangingPhase;
-                    selectedOscName = event.data.oscName;
-                    break;
-                case "updateSelectedOsc":
-                    selectedOscName = event.data.oscName;
-                    break;
-                case "Busy":
-                    if (event.data.subtype === "synthesizing...") {
-                        const synthesizeBtn = document.getElementById("save-preset-btn");
-                        synthesizeBtn.disabled = true;
-                        synthesizeBtn.setAttribute('aria-disabled', 'true');
-                        synthesizeBtn.innerText = 'Synthesizing... Please wait.';
-                        synthesizeBtn.style.cursor = 'not-allowed';
-                        if (document.getElementById("save-preset-btn-2")) {
-                            const fractalSynthesizeBtn = document.getElementById("save-preset-btn-2");
-                            fractalSynthesizeBtn.disabled = true;
-                            fractalSynthesizeBtn.setAttribute('aria-disabled', 'true');
-                            fractalSynthesizeBtn.innerText = 'Synthesizing... Please wait.';
-                            fractalSynthesizeBtn.style.cursor = 'not-allowed';
-                        }
+    uoSynthNode.port.onmessage = async (event) => {
+        console.log('Message from worklet:', event.data);
+
+        switch (event.data.type) {
+            case "error":
+                console.log(event.data.message);
+                alert(event.data.message);
+                break;
+            case "alert":
+                alert(event.data.message);
+                break;
+            case "Load Oscillator":
+                synthParamsInputHTMLforUOSynth[1].value = event.data.parameters._partialCount;
+                synthParamsInputHTMLforUOSynth[2].value = event.data.parameters._damping;
+                synthParamsInputHTMLforUOSynth[3].value = event.data.parameters._wavetype;
+                synthParamsInputHTMLforUOSynth[4].value = event.data.parameters._shift;
+                synthParamsInputHTMLforUOSynth[5].value = event.data.parameters._pull;
+                synthParamsInputHTMLforUOSynth[6].value = event.data.parameters._partialFrequencyInverter;
+                synthParamsInputHTMLforUOSynth[7].value = event.data.parameters._partialComb;
+                synthParamsInputHTMLforUOSynth[8].value = event.data.parameters._partialPhaseShifter;
+                synthParamsInputHTMLforUOSynth[9].value = event.data.parameters._pwmMix;
+                synthParamsInputHTMLforUOSynth[10].value = event.data.parameters._pwmPhase;
+                synthParamsInputHTMLforUOSynth[11].value = event.data.parameters._flangingPhase;
+                selectedOscName = event.data.oscName;
+                break;
+            case "updateSelectedOsc":
+                selectedOscName = event.data.oscName;
+                break;
+            case "Busy":
+                if (event.data.subtype === "synthesizing...") {
+                    const synthesizeBtn = document.getElementById("save-preset-btn");
+                    synthesizeBtn.disabled = true;
+                    synthesizeBtn.setAttribute('aria-disabled', 'true');
+                    synthesizeBtn.innerText = 'Synthesizing... Please wait.';
+                    synthesizeBtn.style.cursor = 'not-allowed';
+                    if (document.getElementById("save-preset-btn-2")) {
+                        const fractalSynthesizeBtn = document.getElementById("save-preset-btn-2");
+                        fractalSynthesizeBtn.disabled = true;
+                        fractalSynthesizeBtn.setAttribute('aria-disabled', 'true');
+                        fractalSynthesizeBtn.innerText = 'Synthesizing... Please wait.';
+                        fractalSynthesizeBtn.style.cursor = 'not-allowed';
                     }
-                    break;
-                case "Done":
-                    if (event.data.subtype === "synthesizing...") {
-                        const synthesizeBtn = document.getElementById("save-preset-btn");
-                        synthesizeBtn.disabled = false;
-                        synthesizeBtn.setAttribute('aria-disabled', 'false');
-                        synthesizeBtn.innerText = 'Synthesize & Save Preset';
-                        synthesizeBtn.style.cursor = 'pointer';
-                        if (document.getElementById("save-preset-btn-2")) {
-                            const fractalSynthesizeBtn = document.getElementById("save-preset-btn-2");
-                            fractalSynthesizeBtn.disabled = false;
-                            fractalSynthesizeBtn.setAttribute('aria-disabled', 'false');
-                            fractalSynthesizeBtn.innerText = 'Fractalize & Save Preset';
-                            fractalSynthesizeBtn.style.cursor = 'pointer';
-                        }
+                }
+                break;
+            case "Done":
+                if (event.data.subtype === "synthesizing...") {
+                    const synthesizeBtn = document.getElementById("save-preset-btn");
+                    synthesizeBtn.disabled = false;
+                    synthesizeBtn.setAttribute('aria-disabled', 'false');
+                    synthesizeBtn.innerText = 'Synthesize & Save Preset';
+                    synthesizeBtn.style.cursor = 'pointer';
+                    if (document.getElementById("save-preset-btn-2")) {
+                        const fractalSynthesizeBtn = document.getElementById("save-preset-btn-2");
+                        fractalSynthesizeBtn.disabled = false;
+                        fractalSynthesizeBtn.setAttribute('aria-disabled', 'false');
+                        fractalSynthesizeBtn.innerText = 'Fractalize & Save Preset';
+                        fractalSynthesizeBtn.style.cursor = 'pointer';
                     }
-                    break;
-                case "givenOscillator":
-                    const oscillator = event.data.oscillator;
-                    oscillatorSamplesArray = oscillator._oscillatorSamples;
-                    oscillatorMaxAmp = oscillator._oscillatorMaxAmp || 1;
-                    let oscilltorPhazorInfo = undefined;
-                    oscilltorPhazorInfo = calcOscillatorPartials({
-                        frequencies: oscillator._oscillatorPartialFreqs, 
-                        amplitudes: oscillator._oscillatorPartialAmps, 
-                        phases: oscillator._oscillatorPartialPhases
-                    }, visualSampleCount, {
-                        maxPartials: oscillator._params._partialCount
-                    });
+                }
+                break;
+            case "givenOscillator":
+                const oscillator = event.data.oscillator;
+                oscillatorSamplesArray = oscillator._oscillatorSamples;
+                oscillatorMaxAmp = oscillator._oscillatorMaxAmp || 1;
+                let oscilltorPhazorInfo = undefined;
+                oscilltorPhazorInfo = calcOscillatorPartials({
+                    frequencies: oscillator._oscillatorPartialFreqs, 
+                    amplitudes: oscillator._oscillatorPartialAmps, 
+                    phases: oscillator._oscillatorPartialPhases
+                }, visualSampleCount, {
+                    maxPartials: oscillator._params._partialCount
+                });
 
-                    drawOscVisualVersion++;
-                    cancelAnimationFrame(visualOscRAF);
-                    visualOscRAF = undefined;
+                drawOscVisualVersion++;
+                cancelAnimationFrame(visualOscRAF);
+                visualOscRAF = undefined;
 
-                    oscCtx.fillStyle = "rgb(24, 24, 26)";
-                    oscCtx.fillRect(0, 0, oscCvs.width, oscCvs.height);
-                    oscCtx.strokeStyle = "rgb(0, 185, 185)";
-                    oscCtx.lineWidth = 1;
+                oscCtx.fillStyle = "rgb(24, 24, 26)";
+                oscCtx.fillRect(0, 0, oscCvs.width, oscCvs.height);
+                oscCtx.strokeStyle = "rgb(0, 185, 185)";
+                oscCtx.lineWidth = 1;
+                
+                const N = oscilltorPhazorInfo.partialCount;
+
+                let x;
+                let y;
+                let yArray = [];
+                let prevX = 0;
+                let prevY = oscCvs.height / 2;
+                let prevYArray = [];
+                prevYArray.fill(oscCvs.height / 2, 0, N - 1);
+                for (let i = 0; i < visualSampleCount; i++) {
+                    let currentVal = 0;
+                    x = (i / visualSampleCount * oscCvs.width);
+                    const amps = oscilltorPhazorInfo.amps, phX = oscilltorPhazorInfo.phX, phY = oscilltorPhazorInfo.phY, cI = oscilltorPhazorInfo.cosInc, sI = oscilltorPhazorInfo.sinInc;
+                    if (visualOscDrawType == "oscilloscope") {
+                        for (let k = 0; k < N; k++) {
+                            currentVal += amps[k] * phY[k];
+                            const xP = phX[k], yP = phY[k];
+                            phX[k] = xP * cI[k] - yP * sI[k];
+                            phY[k] = xP * sI[k] + yP * cI[k];
+                        }
+
+                        y = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                        oscCtx.beginPath();
+                        oscCtx.moveTo(prevX, prevY);
+                        oscCtx.lineTo(x, y);
+                        oscCtx.stroke();
+
+                        prevY = y;
+                    } else if (visualOscDrawType == "fourierOscilloscope") {
+                        for (let k = 0; k < N; k++) {
+                            currentVal = amps[k] / amps[0] * phY[k];
+                            const xP = phX[k], yP = phY[k];
+                            phX[k] = xP * cI[k] - yP * sI[k];
+                            phY[k] = xP * sI[k] + yP * cI[k];
+
+                            yArray[k] = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                            oscCtx.beginPath();
+                            oscCtx.moveTo(prevX, prevYArray[k]);
+                            oscCtx.lineTo(x, yArray[k]);
+                            oscCtx.stroke();
+                        }
+
+                        prevYArray = yArray.map(v => v);
+                    }
+
+                    prevX = x;
+                };
+
+                const currentVersion = drawOscVisualVersion;
+                const drawOscVisual = () => {
+                    if (currentVersion != drawOscVisualVersion) return;
+                    visualOscRAF = requestAnimationFrame(drawOscVisual);
                     
-                    const N = oscilltorPhazorInfo.partialCount;
-
-                    let x;
-                    let y;
-                    let yArray = [];
-                    let prevX = 0;
-                    let prevY = oscCvs.height / 2;
-                    let prevYArray = [];
-                    prevYArray.fill(oscCvs.height / 2, 0, N - 1);
-                    for (let i = 0; i < visualSampleCount; i++) {
-                        let currentVal = 0;
-                        x = (i / visualSampleCount * oscCvs.width);
-                        const amps = oscilltorPhazorInfo.amps, phX = oscilltorPhazorInfo.phX, phY = oscilltorPhazorInfo.phY, cI = oscilltorPhazorInfo.cosInc, sI = oscilltorPhazorInfo.sinInc;
-                        if (visualOscDrawType == "oscilloscope") {
-                            for (let k = 0; k < N; k++) {
-                                currentVal += amps[k] * phY[k];
-                                const xP = phX[k], yP = phY[k];
-                                phX[k] = xP * cI[k] - yP * sI[k];
-                                phY[k] = xP * sI[k] + yP * cI[k];
-                            }
-
-                            y = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
-                            oscCtx.beginPath();
-                            oscCtx.moveTo(prevX, prevY);
-                            oscCtx.lineTo(x, y);
-                            oscCtx.stroke();
-
-                            prevY = y;
-                        } else if (visualOscDrawType == "fourierOscilloscope") {
-                            for (let k = 0; k < N; k++) {
-                                currentVal = amps[k] / amps[0] * phY[k];
-                                const xP = phX[k], yP = phY[k];
-                                phX[k] = xP * cI[k] - yP * sI[k];
-                                phY[k] = xP * sI[k] + yP * cI[k];
-
-                                yArray[k] = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
-                                oscCtx.beginPath();
-                                oscCtx.moveTo(prevX, prevYArray[k]);
-                                oscCtx.lineTo(x, yArray[k]);
-                                oscCtx.stroke();
-                            }
-
-                            prevYArray = yArray.map(v => v);
-                        }
-
-                        prevX = x;
-                    };
-
-                    const currentVersion = drawOscVisualVersion;
-                    const drawOscVisual = () => {
-                        if (currentVersion != drawOscVisualVersion) return;
-                        visualOscRAF = requestAnimationFrame(drawOscVisual);
-                        
-                        if (visualOscDrawType != "paused") {
-                            const img = oscCtx.getImageData(1, 0, oscCvs.width - 1, oscCvs.height);
-                            oscCtx.putImageData(img, 0, 0);
-                            oscCtx.clearRect(oscCvs.width - 1, 0, 1, oscCvs.height);
-                        }
-
-                        let currentVal = 0;
-                        const N = oscilltorPhazorInfo.partialCount;
-                        const amps = oscilltorPhazorInfo.amps, phX = oscilltorPhazorInfo.phX, phY = oscilltorPhazorInfo.phY, cI = oscilltorPhazorInfo.cosInc, sI = oscilltorPhazorInfo.sinInc;
-                        if (visualOscDrawType == "oscilloscope") {
-                            for (let k = 0; k < N; k++) {
-                                currentVal += amps[k] * phY[k];
-                                const xP = phX[k], yP = phY[k];
-                                phX[k] = xP * cI[k] - yP * sI[k];
-                                phY[k] = xP * sI[k] + yP * cI[k];
-                            }
-
-                            const yVal = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
-                            oscCtx.beginPath();
-                            oscCtx.moveTo(oscCvs.width - 2, prevY);
-                            oscCtx.lineTo(oscCvs.width - 1, yVal);
-                            oscCtx.stroke();
-
-                            prevY = yVal;
-                        } else if (visualOscDrawType == "fourierOscilloscope") {
-                            for (let k = 0; k < N; k++) {
-                                currentVal = amps[k] / amps[0] * phY[k];
-                                const xP = phX[k], yP = phY[k];
-                                phX[k] = xP * cI[k] - yP * sI[k];
-                                phY[k] = xP * sI[k] + yP * cI[k];
-
-                                yArray[k] = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
-                                oscCtx.beginPath();
-                                oscCtx.moveTo(oscCvs.width - 2, prevYArray[k]);
-                                oscCtx.lineTo(oscCvs.width - 1, yArray[k]);
-                                oscCtx.stroke();
-                            }
-
-                            prevYArray = yArray.map(v => v);
-                        }
+                    if (visualOscDrawType != "paused") {
+                        const img = oscCtx.getImageData(1, 0, oscCvs.width - 1, oscCvs.height);
+                        oscCtx.putImageData(img, 0, 0);
+                        oscCtx.clearRect(oscCvs.width - 1, 0, 1, oscCvs.height);
                     }
 
-                    await wait(2000);
+                    let currentVal = 0;
+                    const N = oscilltorPhazorInfo.partialCount;
+                    const amps = oscilltorPhazorInfo.amps, phX = oscilltorPhazorInfo.phX, phY = oscilltorPhazorInfo.phY, cI = oscilltorPhazorInfo.cosInc, sI = oscilltorPhazorInfo.sinInc;
+                    if (visualOscDrawType == "oscilloscope") {
+                        for (let k = 0; k < N; k++) {
+                            currentVal += amps[k] * phY[k];
+                            const xP = phX[k], yP = phY[k];
+                            phX[k] = xP * cI[k] - yP * sI[k];
+                            phY[k] = xP * sI[k] + yP * cI[k];
+                        }
 
-                    drawOscVisual();
-                    break;
-            }
-        };
+                        const yVal = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                        oscCtx.beginPath();
+                        oscCtx.moveTo(oscCvs.width - 2, prevY);
+                        oscCtx.lineTo(oscCvs.width - 1, yVal);
+                        oscCtx.stroke();
 
-        const messageFunctions = Object.freeze({
-            createOsc: (oscName) => {
-                uoSynthNode.port.postMessage({
-                    type: "createOsc",
-                    oscName: oscName,
-                });
-            },
-            deleteOsc: (oscName) => {
-                uoSynthNode.port.postMessage({
-                    type: "deleteOsc",
-                    oscName: oscName
-                });
-            },
-            selectOsc: (oscName) => {
-                uoSynthNode.port.postMessage({
-                    type: "selectOsc",
-                    oscName: oscName
-                });
-            },
-            synthesize: (_elseOsc) => {
-                uoSynthNode.port.postMessage({
-                    type: "synthesize",
-                    parameters: {
-                        "_partialCount": Number(synthParamsInputHTMLforUOSynth[1].value),
-                        "_damping": eval(synthParamsInputHTMLforUOSynth[2].value),
-                        "_wavetype": eval(synthParamsInputHTMLforUOSynth[3].value),
-                        "_shift": eval(synthParamsInputHTMLforUOSynth[4].value),
-                        "_pull": eval(synthParamsInputHTMLforUOSynth[5].value),
-                        "_partialFrequencyInverter": eval(synthParamsInputHTMLforUOSynth[6].value),
-                        "_partialComb": eval(synthParamsInputHTMLforUOSynth[7].value),
-                        "_partialPhaseShifter": eval(synthParamsInputHTMLforUOSynth[8].value),
-                        "_pwmMix": eval(synthParamsInputHTMLforUOSynth[9].value),
-                        "_pwmPhase": eval(synthParamsInputHTMLforUOSynth[10].value),
-                        "_flangingPhase": eval(synthParamsInputHTMLforUOSynth[11].value),
-                        "_isFractal": _elseOsc != null ? true : false
-                    },
-                    elseOsc: _elseOsc
-                });
-            },
-            renameOsc: (pscName, newOscName) => {
-                uoSynthNode.port.postMessage({
-                    type: "renameOsc",
-                    oscName: pscName,
-                    newOscName: newOscName
-                })
-            },
-            loadSession: (sessionData) => {
-                uoSynthNode.port.postMessage({
-                    type: "loadSession",
-                    sessionData: sessionData
-                });
-            },
-            addVoice: (oscName, frequency, velocity) => {
-                uoSynthNode.port.postMessage({
-                    type: "addVoice",
-                    oscName: oscName,
-                    frequency: frequency,
-                    velocity: velocity
-                });
-            },
-            removeVoice: (oscName, frequency) => {
-                uoSynthNode.port.postMessage({
-                    type: "removeVoice",
-                    oscName: oscName,
-                    frequency: frequency
-                });
-            },
-            changeOctave: (newOctave) => {
-                uoSynthNode.port.postMessage({
-                    type: "changeOctave",
-                    octave: newOctave
-                });
-            },
-            setOctave: (newOctave) => {
-                uoSynthNode.port.postMessage({
-                    type: "setOctave",
-                    octave: newOctave
-                });
-            }
-        });
+                        prevY = yVal;
+                    } else if (visualOscDrawType == "fourierOscilloscope") {
+                        for (let k = 0; k < N; k++) {
+                            currentVal = amps[k] / amps[0] * phY[k];
+                            const xP = phX[k], yP = phY[k];
+                            phX[k] = xP * cI[k] - yP * sI[k];
+                            phY[k] = xP * sI[k] + yP * cI[k];
 
-        uoSynthNode.port.postMessage({ type: 'testing' });
+                            yArray[k] = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                            oscCtx.beginPath();
+                            oscCtx.moveTo(oscCvs.width - 2, prevYArray[k]);
+                            oscCtx.lineTo(oscCvs.width - 1, yArray[k]);
+                            oscCtx.stroke();
+                        }
 
-        const synthesisMessageHandler = (event) => {
-            const synthName = document.getElementsByName('synth-name-input')[0].value;
-            
-            if (event.data.type === 'givenOscStructure') {
-                oscStructure = event.data.data;
-                try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
-            }
-        
-            console.log('oscStructure loaded:', oscStructure);
-            if (!(synthName in oscStructure)) {
-                messageFunctions.createOsc(synthName);
-            }
+                        prevYArray = yArray.map(v => v);
+                    }
+                }
 
-            if (fractalSynthesis) {
-                const argTextBox = document.getElementsByClassName('fractalize-arg-text-box')[0];
-                messageFunctions.synthesize(argTextBox.value);
+                await wait(2000);
 
-                const fractalize = document.createElement('button');
-                fractalize.id = 'save-preset-btn-2';
-                fractalize.classList.add('save-preset-btn-2');
-                fractalize.innerText = 'Fractalize & Save Preset';
+                drawOscVisual();
+                break;
+        }
+    };
 
-                argTextBox.replaceWith(fractalize);
-
-                fractalSynthesis = false;
-                try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
-                return;
-            } else {
-                try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
-                return messageFunctions.synthesize(null);
-            }
-        };
-
-        document.getElementById("save-preset-btn").addEventListener("click", async () => {
-            oscStructure = null;
-            
-            uoSynthNode.port.addEventListener('message', synthesisMessageHandler, { once: true });
-            uoSynthNode.port.postMessage({ type: 'getOscStructure' });
-        });
-
-        document.getElementsByClassName("synthesize-btn-container")[0].addEventListener("click", (event) => {
-            if (event.target.matches('#save-preset-btn-2')) {
-                fractalSynthesis = true;
-                const fractalize = document.getElementById('save-preset-btn-2');
-
-                const argTextBox = document.createElement('input');
-                argTextBox.classList.add('fractalize-arg-text-box');
-                argTextBox.setAttribute('type', 'text');
-                argTextBox.setAttribute('placeholder', 'Modulator Wave Name');
-
-                fractalize.replaceWith(argTextBox);
-            }
-        });
-
-        document.getElementById("load-osc-btn").addEventListener("click", async () => {
-            const oscName = document.getElementsByName('synth-name-input')[0].value;
+    const messageFunctions = Object.freeze({
+        createOsc: (oscName) => {
+            uoSynthNode.port.postMessage({
+                type: "createOsc",
+                oscName: oscName,
+            });
+        },
+        deleteOsc: (oscName) => {
+            uoSynthNode.port.postMessage({
+                type: "deleteOsc",
+                oscName: oscName
+            });
+        },
+        selectOsc: (oscName) => {
             uoSynthNode.port.postMessage({
                 type: "selectOsc",
                 oscName: oscName
             });
-        });
+        },
+        synthesize: (_elseOsc) => {
+            uoSynthNode.port.postMessage({
+                type: "synthesize",
+                parameters: {
+                    "_partialCount": Number(synthParamsInputHTMLforUOSynth[1].value),
+                    "_damping": eval(synthParamsInputHTMLforUOSynth[2].value),
+                    "_wavetype": eval(synthParamsInputHTMLforUOSynth[3].value),
+                    "_shift": eval(synthParamsInputHTMLforUOSynth[4].value),
+                    "_pull": eval(synthParamsInputHTMLforUOSynth[5].value),
+                    "_partialFrequencyInverter": eval(synthParamsInputHTMLforUOSynth[6].value),
+                    "_partialComb": eval(synthParamsInputHTMLforUOSynth[7].value),
+                    "_partialPhaseShifter": eval(synthParamsInputHTMLforUOSynth[8].value),
+                    "_pwmMix": eval(synthParamsInputHTMLforUOSynth[9].value),
+                    "_pwmPhase": eval(synthParamsInputHTMLforUOSynth[10].value),
+                    "_flangingPhase": eval(synthParamsInputHTMLforUOSynth[11].value),
+                    "_isFractal": _elseOsc != null ? true : false
+                },
+                elseOsc: _elseOsc
+            });
+        },
+        renameOsc: (pscName, newOscName) => {
+            uoSynthNode.port.postMessage({
+                type: "renameOsc",
+                oscName: pscName,
+                newOscName: newOscName
+            })
+        },
+        loadSession: (sessionData) => {
+            uoSynthNode.port.postMessage({
+                type: "loadSession",
+                sessionData: sessionData
+            });
+        },
+        addVoice: (oscName, frequency, velocity) => {
+            uoSynthNode.port.postMessage({
+                type: "addVoice",
+                oscName: oscName,
+                frequency: frequency,
+                velocity: velocity
+            });
+        },
+        removeVoice: (oscName, frequency) => {
+            uoSynthNode.port.postMessage({
+                type: "removeVoice",
+                oscName: oscName,
+                frequency: frequency
+            });
+        },
+        changeOctave: (newOctave) => {
+            uoSynthNode.port.postMessage({
+                type: "changeOctave",
+                octave: newOctave
+            });
+        },
+        setOctave: (newOctave) => {
+            uoSynthNode.port.postMessage({
+                type: "setOctave",
+                octave: newOctave
+            });
+        }
+    });
 
-        document.getElementById("visualOscDrawType").addEventListener('change', (event) => {
-            visualOscDrawType = event.target.value;
-        });
+    uoSynthNode.port.postMessage({ type: 'testing' });
 
-        function setVoice(action, freq, velocity = 1) {
-            if (action === 'add') {
-                messageFunctions.addVoice(selectedOscName, freq, velocity);
-                if (freq >= -12 && freq <= 20) {
-                    const keyboardbtn = document.getElementById(freq);
-                    if (keyboardbtn.className === "keybtn-type-2") {
-                        keyboardbtn.style.color = 'rgb(0, 255, 255)';
-                        keyboardbtn.style.backgroundColor = 'rgb(64, 64, 80)';
-                    } else {
-                        keyboardbtn.style.backgroundColor = 'rgb(0, 255, 255)';
-                    };
-                    keyboardbtn.style.borderRadius = '1px';
-                }
-            } else if (action === 'remove') {
-                messageFunctions.removeVoice(selectedOscName, freq, velocity);
-                if (freq >= -12 && freq <= 20) {
-                    const keyboardbtn = document.getElementById(freq);
-                    if (keyboardbtn.className == "keybtn-type-2") {
-                        keyboardbtn.style.color = 'rgb(0, 185, 185)';
-                        keyboardbtn.style.backgroundColor = 'rgb(24, 24, 26)';
-                    } else {
-                        keyboardbtn.style.backgroundColor = 'rgb(0, 185, 185)';
-                    };
-                    keyboardbtn.style.borderRadius = '2px';
-                }
-            }
+    const synthesisMessageHandler = (event) => {
+        const synthName = document.getElementsByName('synth-name-input')[0].value;
+        
+        if (event.data.type === 'givenOscStructure') {
+            oscStructure = event.data.data;
+            try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
+        }
+    
+        console.log('oscStructure loaded:', oscStructure);
+        if (!(synthName in oscStructure)) {
+            messageFunctions.createOsc(synthName);
         }
 
-        navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+        if (fractalSynthesis) {
+            const argTextBox = document.getElementsByClassName('fractalize-arg-text-box')[0];
+            messageFunctions.synthesize(argTextBox.value);
 
-        function onMIDISuccess(midiAccess) {
-            console.log("MIDI access successful", midiAccess);
+            const fractalize = document.createElement('button');
+            fractalize.id = 'save-preset-btn-2';
+            fractalize.classList.add('save-preset-btn-2');
+            fractalize.innerText = 'Fractalize & Save Preset';
 
+            argTextBox.replaceWith(fractalize);
+
+            fractalSynthesis = false;
+            try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
+            return;
+        } else {
+            try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
+            return messageFunctions.synthesize(null);
+        }
+    };
+
+    document.getElementById("save-preset-btn").addEventListener("click", async () => {
+        oscStructure = null;
+        
+        uoSynthNode.port.addEventListener('message', synthesisMessageHandler, { once: true });
+        uoSynthNode.port.postMessage({ type: 'getOscStructure' });
+    });
+
+    document.getElementsByClassName("synthesize-btn-container")[0].addEventListener("click", (event) => {
+        if (event.target.matches('#save-preset-btn-2')) {
+            fractalSynthesis = true;
+            const fractalize = document.getElementById('save-preset-btn-2');
+
+            const argTextBox = document.createElement('input');
+            argTextBox.classList.add('fractalize-arg-text-box');
+            argTextBox.setAttribute('type', 'text');
+            argTextBox.setAttribute('placeholder', 'Modulator Wave Name');
+
+            fractalize.replaceWith(argTextBox);
+        }
+    });
+
+    document.getElementById("load-osc-btn").addEventListener("click", async () => {
+        const oscName = document.getElementsByName('synth-name-input')[0].value;
+        uoSynthNode.port.postMessage({
+            type: "selectOsc",
+            oscName: oscName
+        });
+    });
+
+    document.getElementById("visualOscDrawType").addEventListener('change', (event) => {
+        visualOscDrawType = event.target.value;
+    });
+
+    function setVoice(action, freq, velocity = 1) {
+        if (action === 'add') {
+            messageFunctions.addVoice(selectedOscName, freq, velocity);
+            if (freq >= -12 && freq <= 20) {
+                const keyboardbtn = document.getElementById(freq);
+                if (keyboardbtn.className === "keybtn-type-2") {
+                    keyboardbtn.style.color = 'rgb(0, 255, 255)';
+                    keyboardbtn.style.backgroundColor = 'rgb(64, 64, 80)';
+                } else {
+                    keyboardbtn.style.backgroundColor = 'rgb(0, 255, 255)';
+                };
+                keyboardbtn.style.borderRadius = '1px';
+            }
+        } else if (action === 'remove') {
+            messageFunctions.removeVoice(selectedOscName, freq, velocity);
+            if (freq >= -12 && freq <= 20) {
+                const keyboardbtn = document.getElementById(freq);
+                if (keyboardbtn.className == "keybtn-type-2") {
+                    keyboardbtn.style.color = 'rgb(0, 185, 185)';
+                    keyboardbtn.style.backgroundColor = 'rgb(24, 24, 26)';
+                } else {
+                    keyboardbtn.style.backgroundColor = 'rgb(0, 185, 185)';
+                };
+                keyboardbtn.style.borderRadius = '2px';
+            }
+        }
+    }
+
+    navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+
+    function onMIDISuccess(midiAccess) {
+        console.log("MIDI access successful", midiAccess);
+
+        for (let input of midiAccess.inputs.values()) {
+            input.onmidimessage = getMIDIMessage;
+        }
+
+        midiAccess.onstatechange = (event) => {
+            console.log(`MIDI device ${event.port.name} (${event.port.manufacturer}) ${event.port.state}`);
             for (let input of midiAccess.inputs.values()) {
                 input.onmidimessage = getMIDIMessage;
             }
+        };
+    }
 
-            midiAccess.onstatechange = (event) => {
-                console.log(`MIDI device ${event.port.name} (${event.port.manufacturer}) ${event.port.state}`);
-                for (let input of midiAccess.inputs.values()) {
-                    input.onmidimessage = getMIDIMessage;
-                }
-            };
+    function getMIDIMessage(message) {
+        const [command, note, velocity] = message.data;
+        
+        if (command === 144 && velocity > 0) {
+            console.log(`Note On: ${note} (Velocity: ${velocity})`);
+            setVoice("add", note - 60, velocity / 128);
+        } else if (command === 128 || (command === 144 && velocity === 0)) {
+            console.log(`Note Off: ${note}`);
+            setVoice("remove", note - 60, velocity / 128);
         }
+    }
 
-        function getMIDIMessage(message) {
-            const [command, note, velocity] = message.data;
-            
-            if (command === 144 && velocity > 0) {
-                console.log(`Note On: ${note} (Velocity: ${velocity})`);
-                setVoice("add", note - 60, velocity / 128);
-            } else if (command === 128 || (command === 144 && velocity === 0)) {
-                console.log(`Note Off: ${note}`);
-                setVoice("remove", note - 60, velocity / 128);
-            }
+    function onMIDIFailure(msg) {
+        console.error(`Failed to get MIDI access - ${msg}`);
+    }
+
+    let pointerPitch;
+
+    document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointerdown', (event) => {
+        pointerPitch = Number(event.target.id)
+        setVoice("add", pointerPitch);
+    });
+
+    document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointerup', () => {
+        setVoice("remove", pointerPitch);
+    });
+
+    document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointercancel', () => {
+        setVoice("remove", pointerPitch);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.repeat || document.activeElement.tagName == 'INPUT' && document.activeElement.type == 'text') return;
+        switch (event.key) {
+            case "`":
+                setVoice("add", -2);
+                break;
+            case "q":
+                setVoice("add", 0);
+                break;
+            case "2":
+                setVoice("add", 1);
+                break;
+            case "w":
+                setVoice("add", 2);
+                break;
+            case "3":
+                setVoice("add", 3);
+                break;
+            case "e":
+                setVoice("add", 4);
+                break;
+            case "r":
+                setVoice("add", 5);
+                break;
+            case "5":
+                setVoice("add", 6);
+                break;
+            case "t":
+                setVoice("add", 7);
+                break;
+            case "6":
+                setVoice("add", 8);
+                break;
+            case "y":
+                setVoice("add", 9);
+                break;
+            case "7":
+                setVoice("add", 10);
+                break;
+            case "u":
+                setVoice("add", 11);
+                break;
+            case "i":
+                setVoice("add", 12);
+                break;
+            case "9":
+                setVoice("add", 13);
+                break;
+            case "o":
+                setVoice("add", 14);
+                break;
+            case "0":
+                setVoice("add", 15);
+                break;
+            case "p":
+                setVoice("add", 16);
+                break;
+            case "[":
+                setVoice("add", 17);
+                break;
+            case "=":
+                setVoice("add", 18);
+                break;
+            case "]":
+                setVoice("add", 19);
+                break;
+            case "Backspace":
+                setVoice("add", 20);
+                break;
+            case `\\`:
+                setVoice("add", 21);
+                break;
+            case "z":
+                setVoice("add", -12);
+                break;
+            case "s":
+                setVoice("add", -11);
+                break;
+            case "x":
+                setVoice("add", -10);
+                break;
+            case "d":
+                setVoice("add", -9);
+                break;
+            case "c":
+                setVoice("add", -8);
+                break;
+            case "v":
+                setVoice("add", -7);
+                break;
+            case "g":
+                setVoice("add", -6);
+                break;
+            case "b":
+                setVoice("add", -5);
+                break;
+            case "h":
+                setVoice("add", -4);
+                break;
+            case "n":
+                setVoice("add", -3);
+                break;
+            case "j":
+                setVoice("add", -2);
+                break;
+            case "m":
+                setVoice("add", -1);
+                break;
+            case ",":
+                setVoice("add", 0);
+                break;
+            case "l":
+                setVoice("add", 1);
+                break;
+            case ".":
+                setVoice("add", 2);
+                break;
+            case ";":
+                setVoice("add", 3);
+                break;
+            case "/":
+                setVoice("add", 4);
+                break;
+            case "Enter":
+                synthIdx = Number(document.getElementsByName(`synth-index-input`)[0].value);    
+                return synthesize();
+        };
+    });
+
+    document.addEventListener('keyup', (event) => {
+        if (document.activeElement.tagName == 'INPUT' && document.activeElement.type == 'text') return;
+        switch (event.key) {
+            case "`":
+                setVoice("remove", -2);
+                break;
+            case "q":
+                setVoice("remove", 0);
+                break;
+            case "2":
+                setVoice("remove", 1);
+                break;
+            case "w":
+                setVoice("remove", 2);
+                break;
+            case "3":
+                setVoice("remove", 3);
+                break;
+            case "e":
+                setVoice("remove", 4);
+                break;
+            case "r":
+                setVoice("remove", 5);
+                break;
+            case "5":
+                setVoice("remove", 6);
+                break;
+            case "t":
+                setVoice("remove", 7);
+                break;
+            case "6":
+                setVoice("remove", 8);
+                break;
+            case "y":
+                setVoice("remove", 9);
+                break;
+            case "7":
+                setVoice("remove", 10);
+                break;
+            case "u":
+                setVoice("remove", 11);
+                break;
+            case "i":
+                setVoice("remove", 12);
+                break;
+            case "9":
+                setVoice("remove", 13);
+                break;
+            case "o":
+                setVoice("remove", 14);
+                break;
+            case "0":
+                setVoice("remove", 15);
+                break;
+            case "p":
+                setVoice("remove", 16);
+                break;
+            case "[":
+                setVoice("remove", 17);
+                break;
+            case "=":
+                setVoice("remove", 18);
+                break;
+            case "]":
+                setVoice("remove", 19);
+                break;
+            case "Backspace":
+                setVoice("remove", 20);
+                break;
+            case "\\":
+                setVoice("remove", 21);
+                break;
+            case "z":
+                setVoice("remove", -12);
+                break;
+            case "s":
+                setVoice("remove", -11);
+                break;
+            case "x":
+                setVoice("remove", -10);
+                break;
+            case "d":
+                setVoice("remove", -9);
+                break;
+            case "c":
+                setVoice("remove", -8);
+                break;
+            case "v":
+                setVoice("remove", -7);
+                break;
+            case "g":
+                setVoice("remove", -6);
+                break;
+            case "b":
+                setVoice("remove", -5);
+                break;
+            case "h":
+                setVoice("remove", -4);
+                break;
+            case "n":
+                setVoice("remove", -3);
+                break;
+            case "j":
+                setVoice("remove", -2);
+                break;
+            case "m":
+                setVoice("remove", -1);
+                break;
+            case ",":
+                setVoice("remove", 0);
+                break;
+            case "l":
+                setVoice("remove", 1);
+                break;
+            case ".":
+                setVoice("remove", 2);
+                break;
+            case ";":
+                setVoice("remove", 3);
+                break;
+            case "/":
+                setVoice("remove", 4);
+                break;
+            case "ArrowDown":
+                messageFunctions.changeOctave(-1);
+                break;
+            case "ArrowUp":
+                messageFunctions.changeOctave(1);
+                break;
+            case "Shift":
+                messageFunctions.setOctave(5);
+                break;
         }
+    });
 
-        function onMIDIFailure(msg) {
-            console.error(`Failed to get MIDI access - ${msg}`);
+    document.getElementById("export-wav-button").addEventListener("click", () => {
+        const sampleRate = synthCtx.sampleRate;
+        const durationSeconds = 1;
+        const numChannels = 1;
+        const bytesPerSample = 2 * numChannels;
+        const bytesPerSecond = sampleRate * bytesPerSample;
+        const dataLength = bytesPerSecond * durationSeconds;
+        const headerLength = 44;
+        const fileLength = dataLength + headerLength;
+        const bufferData = new Uint8Array(fileLength);
+        const dataView = new DataView(bufferData.buffer);
+        const writer = createWriter(dataView);
+
+        // HEADER
+        writer.string("RIFF");
+        // File Size
+        writer.uint32(fileLength);
+        writer.string("WAVE");
+
+        writer.string("fmt ");
+        writer.uint32(16);
+        writer.uint16(1);
+        writer.uint16(numChannels);
+        writer.uint32(sampleRate);
+        writer.uint32(bytesPerSecond);
+        writer.uint16(bytesPerSample);
+        writer.uint16(bytesPerSample * 8);
+        writer.string("data");
+
+        writer.uint32(dataLength);
+
+        for (let i = 0; i < dataLength / 2; i++) {
+            const val = oscillatorSamplesArray[i] / oscillatorMaxAmp;
+            writer.pcm16s(val);
         }
+        const waveBlob = new Blob([dataView.buffer], { type: 'application/octet-stream' });
+        let waveBlobURL = URL.createObjectURL(waveBlob);
+        const downloadLink = document.getElementById('Link');
+        downloadLink.href = waveBlobURL;
+        const strigifiedParms = `${synthParamsInputHTMLforUOSynth[1].value}, ${synthParamsInputHTMLforUOSynth[2].value}, ${synthParamsInputHTMLforUOSynth[3].value}, ${synthParamsInputHTMLforUOSynth[4].value}, ${synthParamsInputHTMLforUOSynth[5].value}, ${synthParamsInputHTMLforUOSynth[6].value}, ${synthParamsInputHTMLforUOSynth[7].value}, ${synthParamsInputHTMLforUOSynth[8].value}, ${synthParamsInputHTMLforUOSynth[9].value}, ${synthParamsInputHTMLforUOSynth[10].value}, ${synthParamsInputHTMLforUOSynth[11].value}`;
+        downloadLink.download = `${selectedOscName} (${strigifiedParms}).wav`;
+        downloadLink.click();
+        URL.revokeObjectURL(waveBlob);
 
-        let pointerPitch;
+        function createWriter(dataView) {
+        let pos = 0;
 
-        document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointerdown', (event) => {
-            pointerPitch = Number(event.target.id)
-            setVoice("add", pointerPitch);
-        });
-
-        document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointerup', () => {
-            setVoice("remove", pointerPitch);
-        });
-
-        document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointercancel', () => {
-            setVoice("remove", pointerPitch);
-        });
-
-        document.addEventListener('keydown', (event) => {
-            if (event.repeat || document.activeElement.tagName == 'INPUT' && document.activeElement.type == 'text') return;
-            switch (event.key) {
-                case "`":
-                    setVoice("add", -2);
-                    break;
-                case "q":
-                    setVoice("add", 0);
-                    break;
-                case "2":
-                    setVoice("add", 1);
-                    break;
-                case "w":
-                    setVoice("add", 2);
-                    break;
-                case "3":
-                    setVoice("add", 3);
-                    break;
-                case "e":
-                    setVoice("add", 4);
-                    break;
-                case "r":
-                    setVoice("add", 5);
-                    break;
-                case "5":
-                    setVoice("add", 6);
-                    break;
-                case "t":
-                    setVoice("add", 7);
-                    break;
-                case "6":
-                    setVoice("add", 8);
-                    break;
-                case "y":
-                    setVoice("add", 9);
-                    break;
-                case "7":
-                    setVoice("add", 10);
-                    break;
-                case "u":
-                    setVoice("add", 11);
-                    break;
-                case "i":
-                    setVoice("add", 12);
-                    break;
-                case "9":
-                    setVoice("add", 13);
-                    break;
-                case "o":
-                    setVoice("add", 14);
-                    break;
-                case "0":
-                    setVoice("add", 15);
-                    break;
-                case "p":
-                    setVoice("add", 16);
-                    break;
-                case "[":
-                    setVoice("add", 17);
-                    break;
-                case "=":
-                    setVoice("add", 18);
-                    break;
-                case "]":
-                    setVoice("add", 19);
-                    break;
-                case "Backspace":
-                    setVoice("add", 20);
-                    break;
-                case `\\`:
-                    setVoice("add", 21);
-                    break;
-                case "z":
-                    setVoice("add", -12);
-                    break;
-                case "s":
-                    setVoice("add", -11);
-                    break;
-                case "x":
-                    setVoice("add", -10);
-                    break;
-                case "d":
-                    setVoice("add", -9);
-                    break;
-                case "c":
-                    setVoice("add", -8);
-                    break;
-                case "v":
-                    setVoice("add", -7);
-                    break;
-                case "g":
-                    setVoice("add", -6);
-                    break;
-                case "b":
-                    setVoice("add", -5);
-                    break;
-                case "h":
-                    setVoice("add", -4);
-                    break;
-                case "n":
-                    setVoice("add", -3);
-                    break;
-                case "j":
-                    setVoice("add", -2);
-                    break;
-                case "m":
-                    setVoice("add", -1);
-                    break;
-                case ",":
-                    setVoice("add", 0);
-                    break;
-                case "l":
-                    setVoice("add", 1);
-                    break;
-                case ".":
-                    setVoice("add", 2);
-                    break;
-                case ";":
-                    setVoice("add", 3);
-                    break;
-                case "/":
-                    setVoice("add", 4);
-                    break;
-                case "Enter":
-                    synthIdx = Number(document.getElementsByName(`synth-index-input`)[0].value);    
-                    return synthesize();
-            };
-        });
-
-        document.addEventListener('keyup', (event) => {
-            if (document.activeElement.tagName == 'INPUT' && document.activeElement.type == 'text') return;
-            switch (event.key) {
-                case "`":
-                    setVoice("remove", -2);
-                    break;
-                case "q":
-                    setVoice("remove", 0);
-                    break;
-                case "2":
-                    setVoice("remove", 1);
-                    break;
-                case "w":
-                    setVoice("remove", 2);
-                    break;
-                case "3":
-                    setVoice("remove", 3);
-                    break;
-                case "e":
-                    setVoice("remove", 4);
-                    break;
-                case "r":
-                    setVoice("remove", 5);
-                    break;
-                case "5":
-                    setVoice("remove", 6);
-                    break;
-                case "t":
-                    setVoice("remove", 7);
-                    break;
-                case "6":
-                    setVoice("remove", 8);
-                    break;
-                case "y":
-                    setVoice("remove", 9);
-                    break;
-                case "7":
-                    setVoice("remove", 10);
-                    break;
-                case "u":
-                    setVoice("remove", 11);
-                    break;
-                case "i":
-                    setVoice("remove", 12);
-                    break;
-                case "9":
-                    setVoice("remove", 13);
-                    break;
-                case "o":
-                    setVoice("remove", 14);
-                    break;
-                case "0":
-                    setVoice("remove", 15);
-                    break;
-                case "p":
-                    setVoice("remove", 16);
-                    break;
-                case "[":
-                    setVoice("remove", 17);
-                    break;
-                case "=":
-                    setVoice("remove", 18);
-                    break;
-                case "]":
-                    setVoice("remove", 19);
-                    break;
-                case "Backspace":
-                    setVoice("remove", 20);
-                    break;
-                case "\\":
-                    setVoice("remove", 21);
-                    break;
-                case "z":
-                    setVoice("remove", -12);
-                    break;
-                case "s":
-                    setVoice("remove", -11);
-                    break;
-                case "x":
-                    setVoice("remove", -10);
-                    break;
-                case "d":
-                    setVoice("remove", -9);
-                    break;
-                case "c":
-                    setVoice("remove", -8);
-                    break;
-                case "v":
-                    setVoice("remove", -7);
-                    break;
-                case "g":
-                    setVoice("remove", -6);
-                    break;
-                case "b":
-                    setVoice("remove", -5);
-                    break;
-                case "h":
-                    setVoice("remove", -4);
-                    break;
-                case "n":
-                    setVoice("remove", -3);
-                    break;
-                case "j":
-                    setVoice("remove", -2);
-                    break;
-                case "m":
-                    setVoice("remove", -1);
-                    break;
-                case ",":
-                    setVoice("remove", 0);
-                    break;
-                case "l":
-                    setVoice("remove", 1);
-                    break;
-                case ".":
-                    setVoice("remove", 2);
-                    break;
-                case ";":
-                    setVoice("remove", 3);
-                    break;
-                case "/":
-                    setVoice("remove", 4);
-                    break;
-                case "ArrowDown":
-                    messageFunctions.changeOctave(-1);
-                    break;
-                case "ArrowUp":
-                    messageFunctions.changeOctave(1);
-                    break;
-                case "Shift":
-                    messageFunctions.setOctave(5);
-                    break;
-            }
-        });
-
-        document.getElementById("export-wav-button").addEventListener("click", () => {
-            const sampleRate = synthCtx.sampleRate;
-            const durationSeconds = 1;
-            const numChannels = 1;
-            const bytesPerSample = 2 * numChannels;
-            const bytesPerSecond = sampleRate * bytesPerSample;
-            const dataLength = bytesPerSecond * durationSeconds;
-            const headerLength = 44;
-            const fileLength = dataLength + headerLength;
-            const bufferData = new Uint8Array(fileLength);
-            const dataView = new DataView(bufferData.buffer);
-            const writer = createWriter(dataView);
-
-            // HEADER
-            writer.string("RIFF");
-            // File Size
-            writer.uint32(fileLength);
-            writer.string("WAVE");
-
-            writer.string("fmt ");
-            writer.uint32(16);
-            writer.uint16(1);
-            writer.uint16(numChannels);
-            writer.uint32(sampleRate);
-            writer.uint32(bytesPerSecond);
-            writer.uint16(bytesPerSample);
-            writer.uint16(bytesPerSample * 8);
-            writer.string("data");
-
-            writer.uint32(dataLength);
-
-            for (let i = 0; i < dataLength / 2; i++) {
-                const val = oscillatorSamplesArray[i] / oscillatorMaxAmp;
-                writer.pcm16s(val);
-            }
-            const waveBlob = new Blob([dataView.buffer], { type: 'application/octet-stream' });
-            let waveBlobURL = URL.createObjectURL(waveBlob);
-            const downloadLink = document.getElementById('Link');
-            downloadLink.href = waveBlobURL;
-            const strigifiedParms = `${synthParamsInputHTMLforUOSynth[1].value}, ${synthParamsInputHTMLforUOSynth[2].value}, ${synthParamsInputHTMLforUOSynth[3].value}, ${synthParamsInputHTMLforUOSynth[4].value}, ${synthParamsInputHTMLforUOSynth[5].value}, ${synthParamsInputHTMLforUOSynth[6].value}, ${synthParamsInputHTMLforUOSynth[7].value}, ${synthParamsInputHTMLforUOSynth[8].value}, ${synthParamsInputHTMLforUOSynth[9].value}, ${synthParamsInputHTMLforUOSynth[10].value}, ${synthParamsInputHTMLforUOSynth[11].value}`;
-            downloadLink.download = `${selectedOscName} (${strigifiedParms}).wav`;
-            downloadLink.click();
-            URL.revokeObjectURL(waveBlob);
-
-            function createWriter(dataView) {
-            let pos = 0;
-
-            return {
-                    string(val) {
-                        for (let i = 0; i < val.length; i++) {
-                            dataView.setUint8(pos++, val.charCodeAt(i));
-                        }
-                    },
-                    uint16(val) {
-                        dataView.setUint16(pos, val, true);
-                        pos += 2;
-                    },
-                    uint32(val) {
-                        dataView.setUint32(pos, val, true);
-                        pos += 4;
-                    },
-                    pcm16s: function(value) {
-                        value = Math.round(value * 32768);
-                        value = Math.max(-32768, Math.min(value, 32767));
-                        dataView.setInt16(pos, value, true);
-                        pos += 2;
-                    },
-                }
-            }
-        });
-
-        function buildSessionObject(oscStructure) {
-            const session = {
-                metadata: {
-                    generatedAt: (new Date()).toISOString(),
-                    sampleRate: synthCtx.sampleRate,
+        return {
+                string(val) {
+                    for (let i = 0; i < val.length; i++) {
+                        dataView.setUint8(pos++, val.charCodeAt(i));
+                    }
                 },
-                oscillators: {}
+                uint16(val) {
+                    dataView.setUint16(pos, val, true);
+                    pos += 2;
+                },
+                uint32(val) {
+                    dataView.setUint32(pos, val, true);
+                    pos += 4;
+                },
+                pcm16s: function(value) {
+                    value = Math.round(value * 32768);
+                    value = Math.max(-32768, Math.min(value, 32767));
+                    dataView.setInt16(pos, value, true);
+                    pos += 2;
+                },
+            }
+        }
+    });
+
+    function buildSessionObject(oscStructure) {
+        const session = {
+            metadata: {
+                generatedAt: (new Date()).toISOString(),
+                sampleRate: synthCtx.sampleRate,
+            },
+            oscillators: {}
+        };
+
+        for (const [name, osc] of Object.entries(oscStructure || {})) {
+            session.oscillators[name] = {
+                _name: osc._name || name,
+                _params: osc._params || {},
+                _elseOscName: osc._elseOscName || null,
             };
 
-            for (const [name, osc] of Object.entries(oscStructure || {})) {
-                session.oscillators[name] = {
-                    _name: osc._name || name,
-                    _params: osc._params || {},
-                    _elseOscName: osc._elseOscName || null,
-                };
-
-                for (const [_key, value] of Object.entries(osc._arrayParams)) {
-                    session.oscillators[name]._params[_key] = value;
-                }
+            for (const [_key, value] of Object.entries(osc._arrayParams)) {
+                session.oscillators[name]._params[_key] = value;
             }
-
-            return session;
         }
 
-        function downloadJSON(obj, filename = 'uosc-session.json') {
-            const text = JSON.stringify(obj, null, 2);
-            const sessionBlob = new Blob([text], { type: 'application/json' });
-            const sessionBlobUrl = URL.createObjectURL(sessionBlob);
-            const downloadLink = document.getElementById('Link');
-            downloadLink.href = sessionBlobUrl;
-            downloadLink.download = filename;
-            downloadLink.click();
-            URL.revokeObjectURL(sessionBlobUrl);
+        return session;
+    }
+
+    function downloadJSON(obj, filename = 'uosc-session.json') {
+        const text = JSON.stringify(obj, null, 2);
+        const sessionBlob = new Blob([text], { type: 'application/json' });
+        const sessionBlobUrl = URL.createObjectURL(sessionBlob);
+        const downloadLink = document.getElementById('Link');
+        downloadLink.href = sessionBlobUrl;
+        downloadLink.download = filename;
+        downloadLink.click();
+        URL.revokeObjectURL(sessionBlobUrl);
+    }
+
+    function exportSessionJSON(filename = null) {
+        if (!uoSynthNode) {
+            alert('There is nothing to export... :(');
+            return;
         }
 
-        function exportSessionJSON(filename = null) {
-            if (!uoSynthNode) {
-                alert('There is nothing to export... :(');
-                return;
+        const msgId = Math.random().toString(36).slice(2);
+        const onMsg = (ev) => {
+            if (ev.data && ev.data.type === 'givenOscStructure') {
+                try { uoSynthNode.port.removeEventListener('message', onMsg); } catch (e) {}
+                const session = buildSessionObject(ev.data.data);
+                downloadJSON(session, filename || `uosc-session-${(new Date()).toISOString().replace(/[:.]/g,'-')}.json`);
             }
+        };
+        uoSynthNode.port.addEventListener('message', onMsg);
+        uoSynthNode.port.postMessage({ type: 'getOscStructure' });
+    }
 
-            const msgId = Math.random().toString(36).slice(2);
-            const onMsg = (ev) => {
-                if (ev.data && ev.data.type === 'givenOscStructure') {
-                    try { uoSynthNode.port.removeEventListener('message', onMsg); } catch (e) {}
-                    const session = buildSessionObject(ev.data.data);
-                    downloadJSON(session, filename || `uosc-session-${(new Date()).toISOString().replace(/[:.]/g,'-')}.json`);
+    document.getElementById("export-session-button").addEventListener("click", () => {
+        exportSessionJSON();
+    });
+
+    document.getElementById("import-session-button").addEventListener("click", () => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'application/json';
+        fileInput.click();
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = JSON.parse(e.target.result);
+                console.log(data);
+                if (data && data.oscillators) {
+                    messageFunctions.loadSession(data.oscillators);
                 }
             };
-            uoSynthNode.port.addEventListener('message', onMsg);
-            uoSynthNode.port.postMessage({ type: 'getOscStructure' });
-        }
-
-        document.getElementById("export-session-button").addEventListener("click", () => {
-            exportSessionJSON();
+            reader.readAsText(file);
         });
+    });
 
-        document.getElementById("import-session-button").addEventListener("click", () => {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'application/json';
-            fileInput.click();
-            fileInput.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const data = JSON.parse(e.target.result);
-                    console.log(data);
-                    if (data && data.oscillators) {
-                        messageFunctions.loadSession(data.oscillators);
+    document.getElementById('manage-session-button').addEventListener('click', () => {
+        let manualDiv = document.getElementById('session-manager-popup-box');
+        manualDiv.style.display = 'flex';
+
+        const sessionManagerDisplayList = document.getElementById('session-manager-list');
+
+        const onMsg = (ev) => {
+            if (ev.data && ev.data.type === 'givenOscStructure') {
+                try { uoSynthNode.port.removeEventListener('message', onMsg); } catch (e) {}
+                Object.keys(ev.data.data || {}).forEach(name => {
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `<p style="width: 172px; margin-left: 8px;">${name}</p> <div style="min-width: 130px;"> <button class="session-manager-button" name="session-manager-rename-button">Rename</button> <button class="session-manager-button" name="session-manager-delete-button">Delete</button> </div>`;
+                    listItem.classList.add('session-manager-list-item');
+                    sessionManagerDisplayList.appendChild(listItem);
+                });
+
+                const sessionManagerFunction = (event) => {
+                    const promptText = document.getElementById('prompt-text');
+                    const promptDiv = document.getElementById('prompt-input-elements');
+                    const oscName = event.target.parentElement.parentElement.innerText.replace('Rename', '').replace('Delete', '').trim();
+                    const action = event.target.name === 'session-manager-rename-button' ? 'rename' : 'delete';
+                    console.log(oscName, action);
+                    if (action === 'delete') {
+                        promptText.innerText = `Are you sure you want to delete "${oscName}"?`;
+                        promptDiv.innerHTML = '<button id="session-manager-confirm-delete-button" class="session-manager-button" style="width: 80px;">Confirm</button> <button id="session-manager-cancel-delete-button" class="session-manager-button" style="width: 80px;">Cancel</button>';
+                        document.getElementById('session-manager-confirm-delete-button').addEventListener('click', () => {
+                            messageFunctions.deleteOsc(oscName);
+                            event.target.parentElement.parentElement.remove();
+                            promptText.innerText = 'Lorem ipsum ..';
+                            promptDiv.innerHTML = '';
+                        });
+                        document.getElementById('session-manager-cancel-delete-button').addEventListener('click', () => {
+                            promptText.innerText = 'Lorem ipsum ..';
+                            promptDiv.innerHTML = '';
+                        });
+                    } else if (action === 'rename') {
+                        promptText.innerText = `Rename "${oscName}" to...`;
+                        promptDiv.innerHTML = '<input id="session-manager-new-name-input" class="synth-param-text-input" type="text" placeholder="New name" style="margin-right: 32px;"> <button id="session-manager-confirm-rename-button" class="session-manager-button">Rename</button> <button id="session-manager-cancel-rename-button" class="session-manager-button">Cancel</button>';
+                        document.getElementById('session-manager-confirm-rename-button').addEventListener('click', () => {
+                            const newName = document.getElementById('session-manager-new-name-input').value.trim();
+                            messageFunctions.renameOsc(oscName, newName);
+                            event.target.parentElement.parentElement.innerHTML = `<p style="width: 172px; margin-left: 8px;">${newName}</p> <div style="min-width: 130px;"> <button class="session-manager-button" name="session-manager-rename-button">Rename</button> <button class="session-manager-button" name="session-manager-delete-button">Delete</button> </div>`;
+                            promptText.innerText = 'Lorem ipsum ..';
+                            promptDiv.innerHTML = '';
+                            for (let btn of smListItemButtons) {
+                                btn.removeEventListener('click', sessionManagerFunction);
+                                btn.addEventListener('click', sessionManagerFunction);
+                            }
+                        });
+                        document.getElementById('session-manager-cancel-rename-button').addEventListener('click', () => {
+                            promptText.innerText = 'Lorem ipsum ..';
+                            promptDiv.innerHTML = '';
+                        });
                     }
                 };
-                reader.readAsText(file);
-            });
-        });
 
-        document.getElementById('manage-session-button').addEventListener('click', () => {
-            let manualDiv = document.getElementById('session-manager-popup-box');
-            manualDiv.style.display = 'flex';
+                const smListItemButtons = document.getElementsByClassName('session-manager-button');
 
-            const sessionManagerDisplayList = document.getElementById('session-manager-list');
-
-            const onMsg = (ev) => {
-                if (ev.data && ev.data.type === 'givenOscStructure') {
-                    try { uoSynthNode.port.removeEventListener('message', onMsg); } catch (e) {}
-                    Object.keys(ev.data.data || {}).forEach(name => {
-                        const listItem = document.createElement('li');
-                        listItem.innerHTML = `<p style="width: 172px; margin-left: 8px;">${name}</p> <div style="min-width: 130px;"> <button class="session-manager-button" name="session-manager-rename-button">Rename</button> <button class="session-manager-button" name="session-manager-delete-button">Delete</button> </div>`;
-                        listItem.classList.add('session-manager-list-item');
-                        sessionManagerDisplayList.appendChild(listItem);
-                    });
-
-                    const sessionManagerFunction = (event) => {
-                        const promptText = document.getElementById('prompt-text');
-                        const promptDiv = document.getElementById('prompt-input-elements');
-                        const oscName = event.target.parentElement.parentElement.innerText.replace('Rename', '').replace('Delete', '').trim();
-                        const action = event.target.name === 'session-manager-rename-button' ? 'rename' : 'delete';
-                        console.log(oscName, action);
-                        if (action === 'delete') {
-                            promptText.innerText = `Are you sure you want to delete "${oscName}"?`;
-                            promptDiv.innerHTML = '<button id="session-manager-confirm-delete-button" class="session-manager-button" style="width: 80px;">Confirm</button> <button id="session-manager-cancel-delete-button" class="session-manager-button" style="width: 80px;">Cancel</button>';
-                            document.getElementById('session-manager-confirm-delete-button').addEventListener('click', () => {
-                                messageFunctions.deleteOsc(oscName);
-                                event.target.parentElement.parentElement.remove();
-                                promptText.innerText = 'Lorem ipsum ..';
-                                promptDiv.innerHTML = '';
-                            });
-                            document.getElementById('session-manager-cancel-delete-button').addEventListener('click', () => {
-                                promptText.innerText = 'Lorem ipsum ..';
-                                promptDiv.innerHTML = '';
-                            });
-                        } else if (action === 'rename') {
-                            promptText.innerText = `Rename "${oscName}" to...`;
-                            promptDiv.innerHTML = '<input id="session-manager-new-name-input" class="synth-param-text-input" type="text" placeholder="New name" style="margin-right: 32px;"> <button id="session-manager-confirm-rename-button" class="session-manager-button">Rename</button> <button id="session-manager-cancel-rename-button" class="session-manager-button">Cancel</button>';
-                            document.getElementById('session-manager-confirm-rename-button').addEventListener('click', () => {
-                                const newName = document.getElementById('session-manager-new-name-input').value.trim();
-                                messageFunctions.renameOsc(oscName, newName);
-                                event.target.parentElement.parentElement.innerHTML = `<p style="width: 172px; margin-left: 8px;">${newName}</p> <div style="min-width: 130px;"> <button class="session-manager-button" name="session-manager-rename-button">Rename</button> <button class="session-manager-button" name="session-manager-delete-button">Delete</button> </div>`;
-                                promptText.innerText = 'Lorem ipsum ..';
-                                promptDiv.innerHTML = '';
-                                for (let btn of smListItemButtons) {
-                                    btn.removeEventListener('click', sessionManagerFunction);
-                                    btn.addEventListener('click', sessionManagerFunction);
-                                }
-                            });
-                            document.getElementById('session-manager-cancel-rename-button').addEventListener('click', () => {
-                                promptText.innerText = 'Lorem ipsum ..';
-                                promptDiv.innerHTML = '';
-                            });
-                        }
-                    };
-
-                    const smListItemButtons = document.getElementsByClassName('session-manager-button');
-
-                    for (let btn of smListItemButtons) {
-                        btn.addEventListener('click', sessionManagerFunction);
-                    }
+                for (let btn of smListItemButtons) {
+                    btn.addEventListener('click', sessionManagerFunction);
                 }
             }
-            uoSynthNode.port.addEventListener('message', onMsg);
-            uoSynthNode.port.postMessage({ type: 'getOscStructure' });
-        });
+        }
+        uoSynthNode.port.addEventListener('message', onMsg);
+        uoSynthNode.port.postMessage({ type: 'getOscStructure' });
     });
 });
 
