@@ -271,6 +271,13 @@ class UOSynth extends AudioWorkletProcessor {
                 case "getOscStructure":
                     this.port.postMessage({ type: "givenOscStructure", data: this._oscStructure});
                     break;
+                case "startRecording":
+                    this._isRecording = true;
+                    break;
+                case "stopRecording":
+                    this._isRecording = false;
+                    this.port.postMessage({ type: "recordedAudio", data: this._recordArray, maxAmp: this._recordingMaxAmp });
+                    break;
             }
         }
 
@@ -278,6 +285,9 @@ class UOSynth extends AudioWorkletProcessor {
         this._selectedOsc = "";
         this._voices = [];
         this._octave = 5;
+        this._isRecording = false;
+        this._recordArray = [];
+        this._recordingMaxAmp = 1;
     }
 
     process(inputList, outputList, parameters) {
@@ -330,6 +340,10 @@ class UOSynth extends AudioWorkletProcessor {
                 }
                 
                 output[sample] = currentVal;
+                if (this._isRecording) {
+                    this._recordArray.push(currentVal);
+                    if (Math.abs(currentVal) > this._recordingMaxAmp) this._recordingMaxAmp = Math.abs(currentVal);
+                }
             }
         }
 

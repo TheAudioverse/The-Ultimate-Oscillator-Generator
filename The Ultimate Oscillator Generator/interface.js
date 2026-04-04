@@ -365,6 +365,11 @@ setupUOSynth(0).then(async () => {
 
                 drawOscVisual();
                 break;
+            case "recordedAudio":
+                const recordedAudio = event.data.data;
+                const maxAmp = event.data.maxAmp || 1;
+                downloadWAV(recordedAudio, maxAmp, "recording");
+                break;
         }
     };
 
@@ -857,9 +862,9 @@ setupUOSynth(0).then(async () => {
         }
     });
 
-    document.getElementById("export-wav-button").addEventListener("click", () => {
+    const downloadWAV = (data, maxAmp, fileType) => {
         const sampleRate = synthCtx.sampleRate;
-        const durationSeconds = 1;
+        const durationSeconds = (data.length || 0) / sampleRate;
         const numChannels = 1;
         const bytesPerSample = 2 * numChannels;
         const bytesPerSecond = sampleRate * bytesPerSample;
@@ -889,15 +894,19 @@ setupUOSynth(0).then(async () => {
         writer.uint32(dataLength);
 
         for (let i = 0; i < dataLength / 2; i++) {
-            const val = oscillatorSamplesArray[i] / oscillatorMaxAmp;
+            const val = data[i] / (maxAmp || 1);
             writer.pcm16s(val);
         }
         const waveBlob = new Blob([dataView.buffer], { type: 'application/octet-stream' });
         let waveBlobURL = URL.createObjectURL(waveBlob);
         const downloadLink = document.getElementById('Link');
         downloadLink.href = waveBlobURL;
-        const strigifiedParms = `${synthParamsInputHTMLforUOSynth[1].value}, ${synthParamsInputHTMLforUOSynth[2].value}, ${synthParamsInputHTMLforUOSynth[3].value}, ${synthParamsInputHTMLforUOSynth[4].value}, ${synthParamsInputHTMLforUOSynth[5].value}, ${synthParamsInputHTMLforUOSynth[6].value}, ${synthParamsInputHTMLforUOSynth[7].value}, ${synthParamsInputHTMLforUOSynth[8].value}, ${synthParamsInputHTMLforUOSynth[9].value}, ${synthParamsInputHTMLforUOSynth[10].value}, ${synthParamsInputHTMLforUOSynth[11].value}`;
-        downloadLink.download = `${selectedOscName} (${strigifiedParms}).wav`;
+        if (fileType == "oscillator") {
+            const strigifiedParms = `${synthParamsInputHTMLforUOSynth[1].value}, ${synthParamsInputHTMLforUOSynth[2].value}, ${synthParamsInputHTMLforUOSynth[3].value}, ${synthParamsInputHTMLforUOSynth[4].value}, ${synthParamsInputHTMLforUOSynth[5].value}, ${synthParamsInputHTMLforUOSynth[6].value}, ${synthParamsInputHTMLforUOSynth[7].value}, ${synthParamsInputHTMLforUOSynth[8].value}, ${synthParamsInputHTMLforUOSynth[9].value}, ${synthParamsInputHTMLforUOSynth[10].value}, ${synthParamsInputHTMLforUOSynth[11].value}`;
+            downloadLink.download = `${selectedOscName} (${strigifiedParms}).wav`;
+        } else if (fileType == "recording") {
+            downloadLink.download = `recording of ${selectedOscName}-${(new Date()).toISOString().replace(/[:.]/g,'-')}.wav`;
+        }
         downloadLink.click();
         URL.revokeObjectURL(waveBlob);
 
@@ -926,6 +935,31 @@ setupUOSynth(0).then(async () => {
                 },
             }
         }
+    }
+
+    document.getElementById("export-wav-button").addEventListener("click", () => downloadWAV(oscillatorSamplesArray, oscillatorMaxAmp, "oscillator"));
+
+    let isRecording = false;
+
+    document.getElementById('record-wav-button').addEventListener('click', () => {
+        if (!uoSynthNode) {
+            alert("You can't record right now, try clicking somewhere..");
+            return;
+        }
+
+        uoSynthNode.port.postMessage({ type: 'startRecording' });
+        isRecording = true;
+        const recordBtn = document.getElementById('record-wav-button');
+        recordBtn.innerText = 'Recording...';
+        recordBtn.style.backgroundColor = 'rgb(255, 0, 0)';
+
+        recordBtn.addEventListener('click', () => {
+            if (!isRecording) return;
+            uoSynthNode.port.postMessage({ type: 'stopRecording' });
+            isRecording = false;
+            recordBtn.innerText = 'Record .wav';
+            recordBtn.style.backgroundColor = 'rgb(24, 24, 26)';
+        });
     });
 
     function buildSessionObject(oscStructure) {

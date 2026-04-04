@@ -1,0 +1,54 @@
+This is the manual for The Ultimate Oscillator Generator.
+
+This manual will go over all the different UI elements and how to use this thing.
+Starting with UI elements, the blue boxes toward the edges of the screen are monitors. The one on the left is for precise viewing of your beautiful oscillator; it scrolls slowly over time so you can view even the non-periodic oscillators precisely. The one on the right is for audio monitoring. There is a dropdown below it to switch its visual mode between oscilloscope, histogram, and spectrogram.
+We'll get to all of the empty textboxes in the middle later.
+
+You can create multiple oscillators to switch between them or for fractalization. There are two textboxes and three buttons for navigating this system.
+The textbox is for specifying the name of the oscillator that you want to save or load. If you want to create multiple oscillators, make sure each name is unique, or it will overwrite the oscillator with the same name. In most cases, that is the one that you're currently editing. To load a previous oscillator, just type its exact name and press the load button. To synthesize (and save) an oscillator, just press the button that says synthesize & save. Don't worry about the fractal button for now.
+
+Below the left monitor are some export options. One says "Export .wav," which will export a high-quality, 48 kilohertz samplerate, 1-second-long version of your oscillator for use in standard DAWs. This doesn't work for every oscillator, as some are non-periodic. So there is another export option called "export session" to save all oscillators you've made into one file for later import in another session. A session includes all unique oscillators that you've made. This save file is of the J SON format.
+Naturally, if you can export save files, you also be able to import saves as well! The button to the right of the export button is the import button. When you import a save, it will take some time to resynthesize all of your oscillators, and then it will show an alert that tells you all of the names of the oscillators so you can load them.
+There is also a manage session button so you can rename and delete oscillators.
+
+At the very bottom is a virtual keyboard. You can obviously touch it so it plays the oscillator, but there are also keyboard button names on each key, so you can play with your keyboard.
+This program also takes MiDi intput, so you can play using a piano keyboard... If you have one...
+
+Now, for the actual oscillator parameters, there are three classes of parameters. The frequency ratio sequence, selective sequence editing, and PWM (pulse width modulation). There are also 2 bonus parameters.
+
+The slider under the oscillator name textbox controls the master volume, and the 2 parameters next to it are how many partials are in the oscillator and the partial amplitude damping.
+The base amplitude of each partial is the reciprocal of the absolute value of its frequency. (If the absolute value is less than 1, it's just the frequency, and if the absolute value is 0, then the amplitude is 0). This is if damping is 1.
+Damping each base amplitude to some power (the input of the parameter). If damping > 1, then the partials are softened; if damping < 1, then the partials are brightened. If damping = 0, every partial has the same pre-comb, pre-pwm amplitude. If damping is negative, all partials become louder than the base partial.
+
+The top 3 parameters control the frequency ratio sequence of the oscillator. Wavetype (wavebase is a little more accurate) controls the first ratio in the sequence. In most cases, this will be 1.
+Shift linearly changes the spacing between the partial frequencies. If Shift = Wavetype, then the oscillator is a sawtooth wave. If Shift is double the Wavetype, then the oscillator is a square wave. If Shift < Wavetype, then the oscillator will sound vaguely like a Sawtooth wave. If Shift > Wavetype, then the oscillator will sound vaguely like a Square wave. This is if pull is positive 1. If pull is negative one, then the sign of every other partial will flip, and some partials won't be evenly spaced. Making wavetype or shift negative does not change anything audibly, as this would only change the phase of the partial.
+If the shift value is an integer, then the oscillator will be of standard wavelength. Standard wavelength being 2 pi or 48 thousand samples. If shift is a rational, then the oscillator will have a wavelength of the denominator of the simplified fraction of wavetype / shift times standard wavelength. If shift is irrational, then the oscillator will never repeat.
+Pull exponentially changes the spacing between the partial frequencies. If pull is an integer, the oscillator will be a standard wavelength oscillator. If pull is a rational, the oscillator will be longer than of standard wavelength. It would likely still be periodic, but not for a long time, as partial count increases. If pull is irrational, then the oscillator won't repeat.
+(For the more technical users) The frequency sequence is defined as F = w + (s k + 1) p to the power of k minus 1. w being wavetype, s being shift, and p being pull, and k being the partial index. The minus 1 at the end is to make sure the first ratio is actually the wavetype, since the exponential term would add one.
+If wavetype is 1 and pull is 0, you can get exactly exponentially spaced partials. So for pull, if you input an expression of the form i ** (s / d), where s is the number of semitones you want to move from the base note, d is the divisions of the octave, and i is the interval that the "octave" is.
+So if the expression is 2 ** (7 / 12), you get a stack of fifth intervals in 12 edo (12 equal divisions of 1 octave, where the octave is double the base frequency). The ** is the standard exponentiation operator in JavaScript (instead of ^).
+
+Enough yapping about frequencies and ratios, next section!
+The three parameters under the frequency ratio sequence parameters are the selective sequence editing parameters. They pick out certain partials by if they're a multiple of n (input of any of these parameters) and change certain properties of that partial. Non-integer inputs for these parameters don't work properly, and likely won't work at all.
+Partial frequency inverter takes a certain partial's frequency and take it's reciprocal. (Making it negative won't change anything audibly.) This is the same as subpartials (more accurately, undertones). Instead of multiples, they're divisions of the fundamental frequency.
+Partial amplitude comb takes a certain partial's amplitude and sets it to 0. This creates the step wave family, and it's as close to pulse waves as you can be, without actually being a pulse wave.
+Partial phase shift takes a certain partial's phase and shifts it by pi. The only reason this is here is to make triangle waves possible.
+If damping = 2, shift = 2, and partial phase shift = 2, then the oscillator you get is a perfect triangle wave.
+
+Final section of parameters! The last 3 parameters control pulse width modulation (PWM). The last 2 parameters (PWM phase and Flange phase) want their parameters' units to be in degrees.
+The PWM formula is modeled for the subtraction of 2 sawtooth waves, but one of them is phase-shifted. The last parameter (which is a flanger*) is the same thing, but you add instead of subtract.
+PWM mix controls how much of an effect the PWM phases have on the sound. This parameter was originally designed to be either 0 or 1, but it can be any number, and this will create some wild-looking results.
+PWM phase controls how phase-shifted the "second oscillator" is, with an offset of 180 degrees. That's the best description I can give you, because this has to be general. This PWM formula works on all oscillators, not just sawtooths.
+Flange phase duplicates the entire oscillator and shifts it by some offset (in degrees). A flange phase of 0 or 360m are the same, and a phase of 180m doubles the frequency of the oscillator (because it cancels all odd partals). m is just any integer besides 0.
+You'll get regular pulse waves if wavetype, shift, and pull are all 1; else, you'll get something else. The auditory effect won't be as strong if the partials are spaced too far apart.
+
+So remember when I said, "Don't worry about the fractal button yet?" Now you can worry about it. This is by far the most interesting effect. Fractal synthesis takes one oscillator and gives its partials to each of the partials of another oscillator. Another way to explain it is building an oscillator out of another non-sinusoidal oscillator. To do this here, just press the Fractalize & Save button. Then it will turn into a textbox. Put the name of the modulating oscillator in this textbox and press synthesize & save. You can also use the name of the current oscillator as the modulating oscillator name (even if it isn't synthesized yet).
+This effect usually would make a periodic oscillator brighter if fractalized with itself, but you can make some cool effects with this. For example, if you fractalize a sawtooth and a stack of fifths, you'll get an oscillator that plays a bunch of sawtooth waves whose frequencies are all perfect fifths apart from each other!
+
+There are 2 more things to cover. The set default params button sets all parameters to make a regular sawtooth wave. The drop-down next to it changes the visual mode of the left monitor. Usually, it would show a scrolling oscillator (sum of sine/cosine waves), but it can also show each sine wave that makes up that oscillator. You can also pause it if you'd like.
+
+Miscellaneous things now. You can type a few constants into each parameter textbox (except partialCount). These include: pi, Euler's Number, and the golden ratio.
+Any valid JavaScript code will work in these parameter textboxes (also except for partialCount). I've heard that there are risks to this, but as long as you don't somehow break the program, you'll be fine.
+You can also type in the parameters as arrays of numbers. If you do this, the synth will act as if the parameter's value changes with the partial index. For more fine control. Probably most useful with the selective sequence editing parameters.
+
+That's all, folks!

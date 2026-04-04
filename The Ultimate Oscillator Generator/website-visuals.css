@@ -242,7 +242,7 @@ button:active {
     margin-left: 8px;
 }
 
-#export-wav-button, #manage-session-button, #export-session-button, #import-session-button {
+#export-wav-button, #manage-session-button, #export-session-button, #import-session-button, #record-wav-button {
     width: 96px;
     height: 20px;
     background-color: rgb(24, 24, 26);
@@ -252,13 +252,13 @@ button:active {
     padding: 0;
 }
 
-#export-wav-button:hover, #manage-session-button:hover, #export-session-button:hover, #import-session-button:hover {
+#export-wav-button:hover, #manage-session-button:hover, #export-session-button:hover, #import-session-button:hover, #record-wav-button:hover {
     background-color: rgb(80, 80, 84);
     border-color: rgb(122, 122, 150);
     cursor: pointer;
 }
 
-#export-wav-button:active, #manage-session-button:active, #export-session-button:active, #import-session-button:active {
+#export-wav-button:active, #manage-session-button:active, #export-session-button:active, #import-session-button:active, #record-wav-button:active {
     background-color: rgb(94, 94, 114);
     border-color: rgb(122, 122, 150);
     border-radius: 1px;
@@ -268,7 +268,6 @@ button:active {
     margin-top: 8px;
     margin-bottom: 4px;
     width: 96px;
-    height: 16px;
 }
 
 #visualOscDrawType {
@@ -280,8 +279,13 @@ button:active {
 }
 
 .dropdown {
-    appearance: base-select;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
     font-size: 12px;
+    height: 20px;
+    padding-left: 6px;
+    padding-right: 6px;
     background-color: rgb(24, 24, 26);
     color: whitesmoke;
     border-style: solid;
@@ -289,6 +293,10 @@ button:active {
     border-width: 1px;
     border-radius: 4px;
     font-family: arial;
+    background-image: url('data:image/svg+xml;utf8,<svg width="24" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9L12 15L18 9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke="whitesmoke"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 18px;
 }
 
 .dropdown:hover {
