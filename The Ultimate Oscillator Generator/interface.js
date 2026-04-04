@@ -537,7 +537,7 @@ setupUOSynth(0).then(async () => {
     function setVoice(action, freq, velocity = 1) {
         if (action === 'add') {
             messageFunctions.addVoice(selectedOscName, freq, velocity);
-            if (freq >= -12 && freq <= 20) {
+            if (freq >= -12 && freq <= 21) {
                 const keyboardbtn = document.getElementById(freq);
                 if (keyboardbtn.className === "keybtn-type-2") {
                     keyboardbtn.style.color = 'rgb(0, 255, 255)';
@@ -549,7 +549,7 @@ setupUOSynth(0).then(async () => {
             }
         } else if (action === 'remove') {
             messageFunctions.removeVoice(selectedOscName, freq, velocity);
-            if (freq >= -12 && freq <= 20) {
+            if (freq >= -12 && freq <= 21) {
                 const keyboardbtn = document.getElementById(freq);
                 if (keyboardbtn.className == "keybtn-type-2") {
                     keyboardbtn.style.color = 'rgb(0, 185, 185)';
@@ -1122,6 +1122,8 @@ setupUOSynth(0).then(async () => {
         uoSynthNode.port.addEventListener('message', onMsg);
         uoSynthNode.port.postMessage({ type: 'getOscStructure' });
     });
+}, () => {
+    alert("Server side error: Audiocontext initialization failed. Check if the audio permission is given to this page and reload the page. If that doesn't work check your connection and reload the page.");
 });
 
 // ---------------------- //
