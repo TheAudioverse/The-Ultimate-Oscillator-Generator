@@ -176,6 +176,39 @@ setupUOSynth(0).then(async () => {
     const gr = (1 + Math.sqrt(5)) / 2;
     const phi = (1 + Math.sqrt(5)) / 2;
     const φ = (1 + Math.sqrt(5)) / 2;
+    function repeatIntervalFunction(equalDivisons, octaveInterval, ...intervals) {
+        let exponetialCoefficients = [0];
+        let exponentialCoefficientsModEd = [0];
+        let terminatingConditionArray = [];
+        let sameIndexCounter = 0;
+        let nextRepeatIndex = -1;
+        let runLoop = true
+        for (let i = 1; runLoop; i++) {
+            exponetialCoefficients[i] = exponetialCoefficients[i-1] + intervals[(i-1) % intervals.length];
+            exponentialCoefficientsModEd[i] = (exponentialCoefficientsModEd[i-1] + intervals[(i-1) % intervals.length]) % equalDivisons;
+            if (i > 1 && exponentialCoefficientsModEd[i] == exponentialCoefficientsModEd[sameIndexCounter]) {
+                nextRepeatIndex = nextRepeatIndex == -1 ? i - 1 : nextRepeatIndex
+                terminatingConditionArray[sameIndexCounter] = exponentialCoefficientsModEd[sameIndexCounter];
+                sameIndexCounter++
+            } else {
+                terminatingConditionArray = [0];
+                sameIndexCounter = 0;
+                nextRepeatIndex = -1;
+            }
+
+            if (nextRepeatIndex > 1 && terminatingConditionArray[terminatingConditionArray.length-1] == exponentialCoefficientsModEd[nextRepeatIndex]) {
+                runLoop = false;
+            }
+        }
+
+        outputArray = [];
+        for (let k = 0; k < nextRepeatIndex+1; k++) {
+            const kDivisor = k == 0 ? 1 : k;
+            outputArray[k] = octaveInterval ** (exponetialCoefficients[k] / (kDivisor * equalDivisons))
+        }
+
+        return outputArray;
+    }
     
     const synthParamsInputHTMLforUOSynth = [
         document.getElementsByName(`synth-param-'amp'`)[0],
