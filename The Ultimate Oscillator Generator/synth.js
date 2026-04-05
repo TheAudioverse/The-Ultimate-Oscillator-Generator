@@ -304,6 +304,7 @@ class UOSynth extends AudioWorkletProcessor {
             for (let sample = 0; sample < output.length; sample++) {
                 let currentVal = 0;
                 for (let voice of this._voices) {
+                    if (!(voice.oscName in this._oscStructure)) continue;
                     const osc = this._oscStructure[voice.oscName];
                     const frequency = (440 * Math.pow(2, (3 + voice.frequency) / 12 + (this._octave - 5))) / osc._params._wavetype;
                     if (!this._additiveSynthesis) {
