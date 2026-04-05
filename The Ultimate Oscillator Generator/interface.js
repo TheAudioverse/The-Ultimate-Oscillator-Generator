@@ -907,7 +907,7 @@ setupUOSynth(0).then(async () => {
         }
         const waveBlob = new Blob([dataView.buffer], { type: 'application/octet-stream' });
         let waveBlobURL = URL.createObjectURL(waveBlob);
-        console.log(data, maxAmp, waveBlob, waveBlobURL);
+        console.log(waveBlob, waveBlobURL);
         const downloadLink = document.getElementById('Link');
         downloadLink.href = waveBlobURL;
         if (fileType == "oscillator") {
@@ -1004,6 +1004,7 @@ setupUOSynth(0).then(async () => {
         const text = JSON.stringify(obj, null, 2);
         const sessionBlob = new Blob([text], { type: 'application/json' });
         const sessionBlobUrl = URL.createObjectURL(sessionBlob);
+        console.log(sessionBlob, sessionBlobUrl);
         const downloadLink = document.getElementById('Link');
         downloadLink.href = sessionBlobUrl;
         downloadLink.download = filename;
