@@ -159,8 +159,10 @@ class UOSynth extends AudioWorkletProcessor {
                     console.log(this._oscStructure);
                     break;
                 case "deleteOsc":
+                    this._selectedOsc = "";
                     delete this._oscStructure[event.data.oscName];
                     console.log(this._oscStructure);
+                    this.port.postMessage({ type: "alert", message: `${event.data.oscName} has been deleted. Load a different oscillator.` });
                     break;
                 case "selectOsc":
                     this._selectedOsc = event.data.oscName;
@@ -194,8 +196,11 @@ class UOSynth extends AudioWorkletProcessor {
                         this._oscStructure[event.data.newOscName] = this._oscStructure[event.data.oscName];
                         this._oscStructure[event.data.newOscName]._name = event.data.newOscName;
                         this._oscStructure[event.data.newOscName]._elseOscName = event.data.newOscName;
-                        delete this._oscStructure[event.data.oscName];
                         this._selectedOsc = event.data.newOscName;
+                        this.port.postMessage({ type: "Load Oscillator", oscName: this._selectedOsc, parameters: this._oscStructure[this._selectedOsc]._params, arrayParameters: this._oscStructure[this._selectedOsc]._arrayParams });
+                        this.port.postMessage({ type: "givenOscillator", oscillator: this._oscStructure[this._selectedOsc] });
+                        delete this._oscStructure[event.data.oscName];
+                        this.port.postMessage({ type: "alert", message: `${event.data.oscName} has been renamed to ${event.data.newOscName}.` });
                     } else {
                         this.port.postMessage({ type: "error", message: "There is no oscillator to rename!" });
                     }
