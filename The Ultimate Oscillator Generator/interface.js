@@ -168,7 +168,7 @@ setupUOSynth(0).then(async () => {
     let visualOscRAF;
     let drawOscVisualVersion = 0;
     let visualOscDrawType = "oscilloscope";
-    let visualOscScalar = 125;
+    let visualOscScalar = 75;
 
     const e = Math.E;
     const π = Math.PI;
@@ -876,7 +876,7 @@ setupUOSynth(0).then(async () => {
         const numChannels = 1;
         const bytesPerSample = 2 * numChannels;
         const bytesPerSecond = sampleRate * bytesPerSample;
-        const dataLength = bytesPerSecond * durationSeconds;
+        const dataLength = bytesPerSecond * Math.ceil(durationSeconds);
         const headerLength = 44;
         const fileLength = dataLength + headerLength;
         const bufferData = new Uint8Array(fileLength);
@@ -907,6 +907,7 @@ setupUOSynth(0).then(async () => {
         }
         const waveBlob = new Blob([dataView.buffer], { type: 'application/octet-stream' });
         let waveBlobURL = URL.createObjectURL(waveBlob);
+        console.log(data, maxAmp, waveBlob, waveBlobURL);
         const downloadLink = document.getElementById('Link');
         downloadLink.href = waveBlobURL;
         if (fileType == "oscillator") {
@@ -1016,7 +1017,6 @@ setupUOSynth(0).then(async () => {
             return;
         }
 
-        const msgId = Math.random().toString(36).slice(2);
         const onMsg = (ev) => {
             if (ev.data && ev.data.type === 'givenOscStructure') {
                 try { uoSynthNode.port.removeEventListener('message', onMsg); } catch (e) {}
