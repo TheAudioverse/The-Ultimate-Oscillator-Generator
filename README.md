@@ -1,6 +1,6 @@
 # The Ultimate Oscillator Generator
 
-This is my first large scale javascript project. This will not go over how to use The Ultimate Oscillator Generator, the manual is found in the program. This will go over the story of its creation.
+This is my first large scale javascript project. This will not go over how to use The Ultimate Oscillator Generator; the manual is found in the program. This will go over the story of its creation.
 
 
 
@@ -8,17 +8,17 @@ It all started when I found out the formula for making the primitive types of os
 
 
 
-After that, I started making a full blown synthesizer in desmos.
+After that, I started making a full-blown synthesizer in Desmos.
 
 It had many more parameters.
 
 
 
-Then I was like, "I want to code this so I could mess around with these oscillators better." I wanted to export them to use them in DAWs, and I wnted quick previewing too! And that's how The Ultimate Oscillator Generator was born (previously called the Ultimate Periodic Waveform Generator, named after periodic waveforms in javascript). 
+Then I was like, "I want to code this so I can mess around with these oscillators better." I wanted to export them to use them in DAWs, and I wanted quick previewing too! And that's how The Ultimate Oscillator Generator was born (previously called the Ultimate Periodic Waveform Generator, named after periodic waveforms in JavaScript). 
 
 
 
-Here's the newest version of that desmos graph (not up to date with this synthesizer): https://www.desmos.com/calculator/u0thi2jb9l
+Here's the newest version of that Desmos graph (not up to date with this synthesizer): https://www.desmos.com/calculator/o8fszhwbws
 
 
 
