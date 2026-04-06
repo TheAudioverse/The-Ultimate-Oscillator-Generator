@@ -20,7 +20,7 @@ class UOsc {
 
     oscillatorPartialAmplitudes(partialIndex) {
         const partialFreq = this.oscillatorPartialFrequencies(partialIndex);
-        const preCombAmp = this._params._wavetype * (this._params._damping + 0 ** Math.abs(this._params._damping)) * (1 / ((this.logAbs(Math.abs(partialFreq)) ** this._params._damping) || 0));
+        const preCombAmp = this._params._wavetype * (this._params._damping + 0 ** Math.abs(this._params._damping)) / ((this.logAbs(Math.abs(partialFreq)) ** this._params._damping) || 1);
         if (!Number.isFinite(preCombAmp)) return 0;
         const amp = preCombAmp * Math.ceil(((partialIndex + (Math.sign(this._params._partialComb) + 1) / 2) % (this._params._partialComb|| 1)) / (this._params._partialComb || 1));
         const pwmAmp = amp * Math.PI * (2 * this._params._pwmMix * Math.sin(Math.PI * partialFreq * (this._params._pwmPhase - 180) / 360) + (1 - this._params._pwmMix)) * Math.cos(partialFreq * Math.PI * this._params._flangingPhase / 360);
@@ -31,12 +31,12 @@ class UOsc {
 
     oscillatorPartialPhases(partialIndex, prePWM) {
         const partialFreq = this.oscillatorPartialFrequencies(partialIndex);
-        let phase = Math.PI * Math.pow(0, Math.sign((partialIndex + 1) % this._params._partialPhaseShifter));
+        let phase = Math.PI * Math.sign(this._params._partialPhaseShifter) * Math.pow(0, Math.sign((partialIndex + 1) % this._params._partialPhaseShifter));
         if (!Number.isFinite(phase)) phase = 0;
         const pwmPhase = Math.PI * (partialFreq * (2 * phase - this._params._flangingPhase) + partialFreq * this._params._pwmMix * (this._params._pwmPhase - 180) + this._params._pwmMix * 180) / 360;
 
         if (prePWM) return phase;
-        else return phase + pwmPhase;
+        else return -(phase + pwmPhase);
     };
 
     tensionFunction(x, p) {
