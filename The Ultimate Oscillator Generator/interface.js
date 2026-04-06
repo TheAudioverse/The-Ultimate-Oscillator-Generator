@@ -141,7 +141,7 @@ async function setupUOSynth(attempts) {
             await synthCtx.audioWorklet.addModule('The Ultimate Oscillator Generator/synth.js');
             console.log('Audio worklet module loaded.');
             uoSynthNode = new AudioWorkletNode(synthCtx, 'uo-synth');
-            uoSynthNode.connect(gainNode).connect(compressor).connect(oscAnalyser).connect(synthCtx.destination);
+            uoSynthNode.connect(compressor).connect(oscAnalyser).connect(gainNode).connect(synthCtx.destination);
         } catch (err) {
             console.error('Error setting up audio worklet:', err, ' retrying...');
             await wait(1000);
@@ -1204,7 +1204,7 @@ const drawOsc = () => {
 
     for (let i = 0; i < bufferLength; i++) {
         const v = dataArray[i] / 256.0;
-        const y = (v * graphCvs.height);
+        const y = (-v * graphCvs.height + graphCvs.height);
 
         if (i === 0) {
             graphCtx.moveTo(x, y);

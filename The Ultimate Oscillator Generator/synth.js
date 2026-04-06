@@ -33,7 +33,7 @@ class UOsc {
         const partialFreq = this.oscillatorPartialFrequencies(partialIndex);
         let phase = Math.PI * Math.sign(this._params._partialPhaseShifter) * Math.pow(0, Math.sign((partialIndex + 1) % this._params._partialPhaseShifter));
         if (!Number.isFinite(phase)) phase = 0;
-        const pwmPhase = Math.PI * (partialFreq * (2 * phase - this._params._flangingPhase) + partialFreq * this._params._pwmMix * (this._params._pwmPhase - 180) + this._params._pwmMix * 180) / 360;
+        const pwmPhase = Math.PI * (partialFreq * this._params._pwmMix * (this._params._pwmPhase - 180) + this._params._pwmMix * 180 - partialFreq * this._params._flangingPhase) / 360;
 
         if (prePWM) return phase;
         else return -(phase + pwmPhase);
