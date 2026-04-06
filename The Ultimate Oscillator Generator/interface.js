@@ -274,13 +274,13 @@ setupUOSynth(0).then(async () => {
                     const synthesizeBtn = document.getElementById("save-preset-btn");
                     synthesizeBtn.disabled = false;
                     synthesizeBtn.setAttribute('aria-disabled', 'false');
-                    synthesizeBtn.innerText = 'Synthesize & Save Preset';
+                    synthesizeBtn.innerText = 'Synthesize & Save Oscillator';
                     synthesizeBtn.style.cursor = 'pointer';
                     if (document.getElementById("save-preset-btn-2")) {
                         const fractalSynthesizeBtn = document.getElementById("save-preset-btn-2");
                         fractalSynthesizeBtn.disabled = false;
                         fractalSynthesizeBtn.setAttribute('aria-disabled', 'false');
-                        fractalSynthesizeBtn.innerText = 'Fractalize & Save Preset';
+                        fractalSynthesizeBtn.innerText = 'Fractalize & Save Oscillator';
                         fractalSynthesizeBtn.style.cursor = 'pointer';
                     }
                 }
@@ -517,7 +517,7 @@ setupUOSynth(0).then(async () => {
             const fractalize = document.createElement('button');
             fractalize.id = 'save-preset-btn-2';
             fractalize.classList.add('save-preset-btn-2');
-            fractalize.innerText = 'Fractalize & Save Preset';
+            fractalize.innerText = 'Fractalize & Save Oscillator';
 
             argTextBox.replaceWith(fractalize);
 
