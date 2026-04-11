@@ -421,10 +421,11 @@ setupUOSynth(0).then(async () => {
                 oscName: oscName,
             });
         },
-        deleteOsc: (oscName) => {
+        deleteOsc: (oscName, bypassAlert = false) => {
             uoSynthNode.port.postMessage({
                 type: "deleteOsc",
-                oscName: oscName
+                oscName: oscName,
+                bypassAlert: bypassAlert
             });
         },
         selectOsc: (oscName) => {
@@ -453,10 +454,10 @@ setupUOSynth(0).then(async () => {
                 elseOsc: _elseOsc
             });
         },
-        renameOsc: (pscName, newOscName) => {
+        renameOsc: (oscName, newOscName) => {
             uoSynthNode.port.postMessage({
                 type: "renameOsc",
-                oscName: pscName,
+                oscName: oscName,
                 newOscName: newOscName
             })
         },
@@ -1139,7 +1140,7 @@ setupUOSynth(0).then(async () => {
                         promptText.innerText = `Are you sure you want to delete "${oscName}"?`;
                         promptDiv.innerHTML = '<button id="session-manager-confirm-delete-button" class="session-manager-button" style="width: 80px;">Confirm</button> <button id="session-manager-cancel-delete-button" class="session-manager-button" style="width: 80px;">Cancel</button>';
                         document.getElementById('session-manager-confirm-delete-button').addEventListener('click', () => {
-                            messageFunctions.deleteOsc(oscName);
+                            messageFunctions.deleteOsc(oscName, false);
                             event.target.parentElement.parentElement.remove();
                             promptText.innerText = 'Lorem ipsum ..';
                             promptDiv.innerHTML = '';
@@ -1184,7 +1185,7 @@ setupUOSynth(0).then(async () => {
                     
                     document.getElementById('session-manager-confirm-clear-button').addEventListener('click', () => {
                         sessionManagerDisplayList.innerHTML = '';
-                        Object.keys(event.data.data || {}).forEach(name => { messageFunctions.deleteOsc(name); });
+                        Object.keys(event.data.data || {}).forEach(name => { messageFunctions.deleteOsc(name, true); });
                         promptText.innerText = 'Lorem ipsum ..';
                         promptDiv.innerHTML = '';
                         manualDiv.style.display = 'none';
