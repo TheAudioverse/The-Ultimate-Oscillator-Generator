@@ -114,7 +114,7 @@
             <option value="fourierOscilloscope">Fourier Oscilloscope</option>
           </select>
         </div>
-        <div class="synthesize-btn-container">
+        <div class="synthesize-btn-container" style="height: 48px; margin-bottom: 24px;">
           <button class="save-preset-btn" id="save-preset-btn">Synthesize & Save Oscillator</button>
           <button class="save-preset-btn-2" id="save-preset-btn-2">Fractalize & Save Oscillator</button>
         </div>
@@ -209,10 +209,8 @@
     </div>
     <div class="popup-box">
       <button class="close-button">X</button>
-        <h2 class="title">Session Manager</h2>
-        <p class="popup-text">
-          This is the session manager.
-        </p>
+      <h2 class="title">Session Manager</h2>
+      <button id="clear-session-btn" style="margin-left: 256px;">Clear session</button>
       <div class="scrollable-content" style="width: 320px; height: 256px;">
         <ul class="popup-text" id="session-manager-list" style="
           list-style-type: none;

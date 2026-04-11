@@ -162,7 +162,7 @@ class UOSynth extends AudioWorkletProcessor {
                     this._selectedOsc = "";
                     delete this._oscStructure[event.data.oscName];
                     console.log(this._oscStructure);
-                    this.port.postMessage({ type: "alert", message: `${event.data.oscName} has been deleted. Load a different oscillator.` });
+                    this.port.postMessage({ type: "alert", message: `${event.data.oscName} has been deleted.` });
                     break;
                 case "selectOsc":
                     this._selectedOsc = event.data.oscName;

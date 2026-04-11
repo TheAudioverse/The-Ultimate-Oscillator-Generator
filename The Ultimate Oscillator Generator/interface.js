@@ -520,6 +520,7 @@ setupUOSynth(0).then(async () => {
             fractalize.innerText = 'Fractalize & Save Oscillator';
 
             argTextBox.replaceWith(fractalize);
+            document.getElementsByClassName('synthesize-btn-container')[0].removeChild(document.getElementsByClassName('fractalize-cancel-btn')[0]);
 
             fractalSynthesis = false;
             try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
@@ -546,8 +547,30 @@ setupUOSynth(0).then(async () => {
             argTextBox.classList.add('fractalize-arg-text-box');
             argTextBox.setAttribute('type', 'text');
             argTextBox.setAttribute('placeholder', 'Modulator Wave Name');
+            const fractalizeCancelBtn = document.createElement('button');
+            fractalizeCancelBtn.innerText = 'Cancel';
+            fractalizeCancelBtn.classList.add('fractalize-cancel-btn');
+            fractalizeCancelBtn.style.width = "216px";
+            fractalizeCancelBtn.style.marginLeft = "224px";
+            fractalizeCancelBtn.style.marginTop = "4px";
+            fractalizeCancelBtn.addEventListener('click', () => {
+                const argTextBox = document.getElementsByClassName('fractalize-arg-text-box')[0];
+
+                const fractalize = document.createElement('button');
+                fractalize.id = 'save-preset-btn-2';
+                fractalize.classList.add('save-preset-btn-2');
+                fractalize.innerText = 'Fractalize & Save Oscillator';
+
+                argTextBox.replaceWith(fractalize);
+                document.getElementsByClassName('synthesize-btn-container')[0].removeChild(fractalizeCancelBtn);
+
+                fractalSynthesis = false;
+                try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
+                return;
+            });
 
             fractalize.replaceWith(argTextBox);
+            document.getElementsByClassName('synthesize-btn-container')[0].appendChild(fractalizeCancelBtn);
         }
     });
 
@@ -636,6 +659,10 @@ setupUOSynth(0).then(async () => {
     });
 
     document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointercancel', () => {
+        setVoice("remove", pointerPitch);
+    });
+
+    document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointerexit', () => {
         setVoice("remove", pointerPitch);
     });
 
@@ -1087,17 +1114,17 @@ setupUOSynth(0).then(async () => {
     });
 
     document.getElementById('manage-session-button').addEventListener('click', () => {
-        let manualDiv = document.getElementById('session-manager-popup-box');
+        const manualDiv = document.getElementById('session-manager-popup-box');
         manualDiv.style.display = 'flex';
 
         const sessionManagerDisplayList = document.getElementById('session-manager-list');
 
-        const onMsg = (ev) => {
-            if (ev.data && ev.data.type === 'givenOscStructure') {
+        const onMsg = (event) => {
+            if (event.data && event.data.type === 'givenOscStructure') {
                 try { uoSynthNode.port.removeEventListener('message', onMsg); } catch (e) {}
-                Object.keys(ev.data.data || {}).forEach(name => {
+                Object.keys(event.data.data || {}).forEach(name => {
                     const listItem = document.createElement('li');
-                    listItem.innerHTML = `<p style="width: 172px; margin-left: 8px;">${name}</p> <div style="min-width: 130px;"> <button class="session-manager-button" name="session-manager-rename-button">Rename</button> <button class="session-manager-button" name="session-manager-delete-button">Delete</button> </div>`;
+                    listItem.innerHTML = `<p id="sm-list-item-${name}" style="width: 172px; margin-left: 8px;">${name}</p> <div style="min-width: 130px;"> <button class="session-manager-button" name="session-manager-rename-button">Rename</button> <button class="session-manager-button" name="session-manager-delete-button">Delete</button> </div>`;
                     listItem.classList.add('session-manager-list-item');
                     sessionManagerDisplayList.appendChild(listItem);
                 });
@@ -1147,13 +1174,47 @@ setupUOSynth(0).then(async () => {
                 for (let btn of smListItemButtons) {
                     btn.addEventListener('click', sessionManagerFunction);
                 }
+
+                const clearSessionBtn = document.getElementById('clear-session-btn');
+                clearSessionBtn.addEventListener('click', () => {
+                    const promptText = document.getElementById('prompt-text');
+                    const promptDiv = document.getElementById('prompt-input-elements');
+                    promptText.innerText = 'Are you sure you want to clear the session? This action cannot be undone.';
+                    promptDiv.innerHTML = '<button id="session-manager-confirm-clear-button" class="session-manager-button" style="width: 80px;">Confirm</button> <button id="session-manager-cancel-clear-button" class="session-manager-button" style="width: 80px;">Cancel</button>';
+                    
+                    document.getElementById('session-manager-confirm-clear-button').addEventListener('click', () => {
+                        sessionManagerDisplayList.innerHTML = '';
+                        Object.keys(event.data.data || {}).forEach(name => { messageFunctions.deleteOsc(name); });
+                        promptText.innerText = 'Lorem ipsum ..';
+                        promptDiv.innerHTML = '';
+                        manualDiv.style.display = 'none';
+                        
+                        document.getElementsByName('synth-name-input')[0].value = '';
+                        synthParamsInputHTMLforUOSynth[1].value = '';
+                        synthParamsInputHTMLforUOSynth[2].value = '';
+                        synthParamsInputHTMLforUOSynth[3].value = '';
+                        synthParamsInputHTMLforUOSynth[4].value = '';
+                        synthParamsInputHTMLforUOSynth[5].value = '';
+                        synthParamsInputHTMLforUOSynth[6].value = '';
+                        synthParamsInputHTMLforUOSynth[7].value = '';
+                        synthParamsInputHTMLforUOSynth[8].value = '';
+                        synthParamsInputHTMLforUOSynth[9].value = '';
+                        synthParamsInputHTMLforUOSynth[10].value = '';
+                        synthParamsInputHTMLforUOSynth[11].value = '';
+                        selectedOscName = '';
+                    });
+                    document.getElementById('session-manager-cancel-clear-button').addEventListener('click', () => {
+                        promptText.innerText = 'Lorem ipsum ..';
+                        promptDiv.innerHTML = '';
+                    });
+                });
             }
         }
         uoSynthNode.port.addEventListener('message', onMsg);
         uoSynthNode.port.postMessage({ type: 'getOscStructure' });
     });
 }, () => {
-    alert("Server side error: Audiocontext initialization failed. Check if the audio permission is given to this page and reload the page. If that doesn't work check your connection and reload the page.");
+    alert("Server side error: Audio context initialization failed. Check if the audio permission is given to this page and reload the page. If that doesn't work check your connection and reload the page.");
 });
 
 // ---------------------- //
