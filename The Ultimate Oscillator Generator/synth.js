@@ -90,7 +90,7 @@ class UOsc {
             if ("_pull" in this._arrayParams || "_partialFrequencyInverter" in this._arrayParams) {
                 Object.keys(this._arrayParams).forEach(_key => {
                     if (_key == "_pull") {
-                        useRealNums = this._arrayParams._pull.some(v => v % 1 != 0);
+                        useRealNums = this._arrayParams._pull.some((v, i) => v * (i + 1) % 1 != 0);
                         return;
                     } else if (_key == "_partialFrequencyInverter") {
                         useRealNums = this._arrayParams._partialFrequencyInverter.some(v => v != 0);
@@ -101,7 +101,7 @@ class UOsc {
             if (useRealNums == false || "_pull" in elseOsc._arrayParams || "_partialFrequencyInverter" in elseOsc._arrayParams) {
                 Object.keys(elseOsc._arrayParams).forEach(_key => {
                     if (_key == "_pull") {
-                        useRealNums = elseOsc._arrayParams._pull.some(v => v % 1 != 0);
+                        useRealNums = elseOsc._arrayParams._pull.some((v, i) => v * (i + 1) % 1 != 0);
                         return;
                     } else if (_key == "_partialFrequencyInverter") {
                         useRealNums = elseOsc._arrayParams._partialFrequencyInverter.some(v => v != 0);
@@ -142,8 +142,6 @@ class UOsc {
 class UOSynth extends AudioWorkletProcessor {
     constructor() {
         super();
-        this._additiveSynthesis = true;
-        this._declickSampleTime = 512;
 
         this.port.onmessage = (event) => {
             console.log('New Message from Main thread: ', event.data);
@@ -178,7 +176,7 @@ class UOSynth extends AudioWorkletProcessor {
                         this.port.postMessage({ type: "Busy", subtype: "synthesizing..." });
                         this._oscStructure[this._selectedOsc].createOscillator(event.data.parameters, this._oscStructure[event.data.elseOsc]);
                         for (let v of this._voices) {
-                            if (v.oscName === this._selectedOsc && this._additiveSynthesis) {
+                            if (v.oscName === this._selectedOsc && !this._playWavetable) {
                                 calcVoicePartials(v, this._oscStructure[this._selectedOsc],
                                 (440 * Math.pow(2, (3 + v.frequency) / 12 + (this._octave - 5))) / this._oscStructure[this._selectedOsc]._params._wavetype,
                                 48000, { fadeStart: 20000, fadeEnd: 24000, maxPartials: 1024, relThreshold: 1e-6 });
@@ -228,7 +226,7 @@ class UOSynth extends AudioWorkletProcessor {
                     }
                     if (!already) {
                         this._voices.push({ oscName: event.data.oscName, frequency: event.data.frequency, velocity: event.data.velocity, phase: 0, freeRunMaxVal: 1, sampleCounter: 0, removing: false });
-                        if (this._additiveSynthesis) {
+                        if (!this._playWavetable) {
                             calcVoicePartials(this._voices[this._voices.length - 1], this._oscStructure[event.data.oscName], (440 * Math.pow(2, (3 + event.data.frequency) / 12 + (this._octave - 5))) / this._oscStructure[event.data.oscName]._params._wavetype, 48000, {
                                 fadeStart: 20000,
                                 fadeEnd: 24000,
@@ -250,7 +248,7 @@ class UOSynth extends AudioWorkletProcessor {
                 case "changeOctave":
                     this._octave += event.data.octave;
                     for (let voice of this._voices) {
-                        if (this._additiveSynthesis) {
+                        if (!this._playWavetable) {
                             calcVoicePartials(voice, this._oscStructure[voice.oscName], (440 * Math.pow(2, (3 + voice.frequency) / 12 + (this._octave - 5))) / this._oscStructure[voice.oscName]._params._wavetype, 48000, {
                                 fadeStart: 20000,
                                 fadeEnd: 24000,
@@ -263,7 +261,7 @@ class UOSynth extends AudioWorkletProcessor {
                 case "setOctave":
                     this._octave = event.data.octave;
                     for (let voice of this._voices) {
-                        if (this._additiveSynthesis) {
+                        if (!this._playWavetable) {
                             calcVoicePartials(voice, this._oscStructure[voice.oscName], (440 * Math.pow(2, (3 + voice.frequency) / 12 + (this._octave - 5))) / this._oscStructure[voice.oscName]._params._wavetype, 48000, {
                                 fadeStart: 20000,
                                 fadeEnd: 24000,
@@ -292,6 +290,9 @@ class UOSynth extends AudioWorkletProcessor {
         this._selectedOsc = "";
         this._voices = [];
         this._octave = 5;
+        this._playWavetable = false;
+        this._declickSampleTime = 512;
+        this._prevSamplesBuffer;
         this._isRecording = false;
         this._recordArray = [];
         this._recordingMaxAmp = 1;
@@ -306,8 +307,38 @@ class UOSynth extends AudioWorkletProcessor {
                 for (let voice of this._voices) {
                     if (!(voice.oscName in this._oscStructure)) continue;
                     const osc = this._oscStructure[voice.oscName];
+                    const elseOsc = this._oscStructure[voice.oscName]._elseOscName ? this._oscStructure[this._oscStructure[voice.oscName]._elseOscName] : null;
                     const frequency = (440 * Math.pow(2, (3 + voice.frequency) / 12 + (this._octave - 5))) / osc._params._wavetype;
-                    if (!this._additiveSynthesis) {
+                    this._playWavetable = true;
+                    if ("_pull" in osc._arrayParams || "_partialFrequencyInverter" in osc._arrayParams) {
+                        Object.keys(osc._arrayParams).forEach(_key => {
+                            if (_key == "_pull") {
+                                this._playWavetable = osc._arrayParams._pull.every((v, i) => (v * (i + 1)) % 1 == 0);
+                                return;
+                            } else if (_key == "_partialFrequencyInverter") {
+                                this._playWavetable = osc._arrayParams._partialFrequencyInverter.every(v => v == 0);
+                                return;
+                            }
+                        });
+                    }
+                    if (elseOsc) {
+                        if (this._playWavetable == true || "_pull" in elseOsc._arrayParams || "_partialFrequencyInverter" in elseOsc._arrayParams) {
+                            Object.keys(elseOsc._arrayParams).forEach(_key => {
+                                if (_key == "_pull") {
+                                    this._playWavetable = elseOsc._arrayParams._pull.every((v, i) => (v * (i + 1)) % 1 == 0);
+                                    return;
+                                } else if (_key == "_partialFrequencyInverter") {
+                                    this._playWavetable = elseOsc._arrayParams._partialFrequencyInverter.every(v => v == 0);
+                                    return;
+                                }
+                            });
+                        }
+                    }
+                    const oscNonArrayIntegerFrequenciesCheck = osc._params._pull % 1 == 0 && osc._params._partialFrequencyInverter == 0;
+                    const elseOscNonArrayIntegerFrequenciesCheck = elseOsc && elseOsc._params._pull % 1 == 0 && elseOsc._params._partialFrequencyInverter == 0;
+                    if (this._playWavetable == true) this._playWavetable = oscNonArrayIntegerFrequenciesCheck && elseOscNonArrayIntegerFrequenciesCheck;
+                    
+                    if (this._playWavetable) {
                         let idx = voice.phase % 48000;
                         if (idx < 0) idx += 48000;
                         const i0 = Math.floor(idx);
@@ -360,8 +391,6 @@ class UOSynth extends AudioWorkletProcessor {
 }
 
 registerProcessor("uo-synth", UOSynth);
-
-const antiAliasingFilterCoeffs = designLowpassFIR(48000, 20000, 401);
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -635,46 +664,3 @@ function calcVoicePartials(voice, osc, fundamental, sampleRate, opts = {}) {
         voice._sinInc = sinInc;
     }
 }
-
-function sinc(x) {
-    if (x === 0) return 1;
-    return Math.sin(Math.PI * x) / (Math.PI * x);
-}
-
-function designLowpassFIR(sampleRate, cutoffHz, numTaps = 201) {
-    if (numTaps % 2 === 0) numTaps++;
-    const fc = cutoffHz / sampleRate;
-    const M = (numTaps - 1) / 2;
-    const coeffs = new Float32Array(numTaps);
-
-    for (let n = 0; n < numTaps; n++) {
-        const k = n - M;
-        let h = 2 * fc * sinc(2 * fc * k);
-        const w = 0.54 - 0.46 * Math.cos((2 * Math.PI * n) / (numTaps - 1));
-        coeffs[n] = h * w;
-    }
-    let sum = 0;
-    for (let i = 0; i < coeffs.length; i++) sum += coeffs[i];
-    for (let i = 0; i < coeffs.length; i++) coeffs[i] /= sum;
-
-    return coeffs;
-}
-
-function applyFIRFilter(inputSamples, coeffs) {
-    const N = inputSamples.length;
-    const M = coeffs.length;
-    const half = Math.floor(M / 2);
-    const out = new Float32Array(N);
-
-    for (let n = 0; n < N; n++) {
-        let acc = 0;
-        for (let k = 0; k < M; k++) {
-        const i = n - k + half;
-        if (i >= 0 && i < N) acc += inputSamples[i] * coeffs[k];
-        }
-        out[n] = acc;
-    }
-    return out;
-}
-
-"partial"
