@@ -450,6 +450,18 @@ setupUOSynth(0).then(async () => {
                 type: "setOctave",
                 octave: newOctave
             });
+        },
+        transpose: (transpose) => {
+            uoSynthNode.port.postMessage({
+                type: "transpose",
+                transpose: transpose
+            });
+        },
+        setTransposition: (transpose) => {
+            uoSynthNode.port.postMessage({
+                type: "setTransposition",
+                transpose: transpose
+            });
         }
     });
 
@@ -748,9 +760,21 @@ setupUOSynth(0).then(async () => {
             case "/":
                 setVoice("add", 4);
                 break;
+            case "ArrowDown":
+                messageFunctions.changeOctave(-1);
+                break;
+            case "ArrowUp":
+                messageFunctions.changeOctave(1);
+                break;
+            case "ArrowLeft":
+                messageFunctions.transpose(-1);
+                break;
+            case "ArrowRight":
+                messageFunctions.transpose(1);
+                break;
             case "Enter":
-                synthIdx = Number(document.getElementsByName(`synth-index-input`)[0].value);    
-                return synthesize();
+                document.getElementById("save-preset-btn").click();
+                break;
         };
     });
 
@@ -877,14 +901,9 @@ setupUOSynth(0).then(async () => {
             case "/":
                 setVoice("remove", 4);
                 break;
-            case "ArrowDown":
-                messageFunctions.changeOctave(-1);
-                break;
-            case "ArrowUp":
-                messageFunctions.changeOctave(1);
-                break;
             case "Shift":
                 messageFunctions.setOctave(5);
+                messageFunctions.setTransposition(0);
                 break;
         }
     });
