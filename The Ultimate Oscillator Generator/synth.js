@@ -4,7 +4,8 @@ class UOsc {
         this._params;
         this._arrayParams = {};
         this._elseOscName;
-        this._oscillatorSamples = new Float64Array(48000);
+        this._oscillatorSamples;
+        this._oscillatorPeriod = 0;
         this._oscillatorMaxAmp = 1;
         this._oscillatorPartialFreqs = [];
         this._oscillatorPartialAmps = [];
@@ -48,6 +49,7 @@ class UOsc {
     }
 
     logAbs(x) {
+        if (x == 0) return 0;
         if (x >= -1 && x <= 1) return 1 / x;
         else return x;
     }
@@ -121,15 +123,16 @@ class UOsc {
             this._oscillatorPartialAmps = fractalOscillatorData.amplitudes;
             this._oscillatorPartialPhases = fractalOscillatorData.phases;
         }
+        this._oscillatorPeriod = computeCycleLength(this._oscillatorPartialFreqs).periodSamples;
         
         this._oscillatorMaxAmp = 1;
-        let oscillatorSamples = this._oscillatorSamples;
-        for (let sample = 0; sample < 48000; sample++) {
+        this._oscillatorSamples = new Float64Array(Number.isNaN(this._oscillatorPeriod) ? 48000 : this._oscillatorPeriod);
+        for (let sample = 0; sample < this._oscillatorSamples.length; sample++) {
             let currentVal = 0;
             for (let partialIndex = 0; partialIndex < this._params._partialCount; partialIndex++) {
                 currentVal += this.waveVector(sample / 48000, partialIndex)[1];
             }
-            oscillatorSamples[sample] = currentVal;
+            this._oscillatorSamples[sample] = currentVal;
             if (Math.abs(currentVal) > this._oscillatorMaxAmp) this._oscillatorMaxAmp = Math.abs(currentVal);
         }
     }
@@ -307,52 +310,25 @@ class UOSynth extends AudioWorkletProcessor {
                 for (let voice of this._voices) {
                     if (!(voice.oscName in this._oscStructure)) continue;
                     const osc = this._oscStructure[voice.oscName];
-                    const elseOsc = this._oscStructure[voice.oscName]._elseOscName ? this._oscStructure[this._oscStructure[voice.oscName]._elseOscName] : null;
                     const frequency = (440 * Math.pow(2, (3 + voice.frequency) / 12 + (this._octave - 5))) / osc._params._wavetype;
-                    this._playWavetable = true;
-                    if ("_pull" in osc._arrayParams || "_partialFrequencyInverter" in osc._arrayParams) {
-                        Object.keys(osc._arrayParams).forEach(_key => {
-                            if (_key == "_pull") {
-                                this._playWavetable = osc._arrayParams._pull.every((v, i) => (v * (i + 1)) % 1 == 0);
-                                return;
-                            } else if (_key == "_partialFrequencyInverter") {
-                                this._playWavetable = osc._arrayParams._partialFrequencyInverter.every(v => v == 0);
-                                return;
-                            }
-                        });
-                    }
-                    if (elseOsc) {
-                        if (this._playWavetable == true || "_pull" in elseOsc._arrayParams || "_partialFrequencyInverter" in elseOsc._arrayParams) {
-                            Object.keys(elseOsc._arrayParams).forEach(_key => {
-                                if (_key == "_pull") {
-                                    this._playWavetable = elseOsc._arrayParams._pull.every((v, i) => (v * (i + 1)) % 1 == 0);
-                                    return;
-                                } else if (_key == "_partialFrequencyInverter") {
-                                    this._playWavetable = elseOsc._arrayParams._partialFrequencyInverter.every(v => v == 0);
-                                    return;
-                                }
-                            });
-                        }
-                    }
-                    const oscNonArrayIntegerFrequenciesCheck = osc._params._pull % 1 == 0 && osc._params._partialFrequencyInverter == 0;
-                    const elseOscNonArrayIntegerFrequenciesCheck = elseOsc && elseOsc._params._pull % 1 == 0 && elseOsc._params._partialFrequencyInverter == 0;
-                    if (this._playWavetable == true) this._playWavetable = oscNonArrayIntegerFrequenciesCheck && elseOscNonArrayIntegerFrequenciesCheck;
+                    this._playWavetable = false;
                     
                     if (this._playWavetable) {
-                        let idx = voice.phase % 48000;
-                        if (idx < 0) idx += 48000;
+                        const period = osc._oscillatorSamples.length;
+                        let idx = voice.phase % period;
+                        if (idx < 0) idx += period;
                         const i0 = Math.floor(idx);
-                        const i1 = Math.ceil(idx) % 48000;
+                        const i1 = Math.ceil(idx) % osc._oscillatorSamples.length;
                         const frac = idx - i0;
                         const a = osc.oscillatorSamples[i0];
                         const b = osc.oscillatorSamples[i1];
                         currentVal += lerp(a, b, frac) * voice.velocity * smooth((voice.sampleCounter + 1) / 512);
                         voice.phase = idx + frequency;
                         if (voice.phase >= Number.MAX_SAFE_INTEGER - 1e6) {
-                            voice.phase = (voice.phase % 48000) + 48000;
+                            voice.phase = (voice.phase % period) + period;
                         }
                         if (!voice || typeof voice.phase !== 'number') continue;
-                        voice.phase = ((voice.phase % 48000) + 48000) % 48000;
+                        voice.phase = ((voice.phase % period) + period) % period;
                     } else {
                         let preMixCurrentVal = 0;
                         const N = voice._partialCount;
@@ -409,6 +385,53 @@ const smooth = (x) => {
     return psi(x) / (psi(x) + psi(1 - x));
 }
 
+function gcd(a, b) {
+    a = Math.abs(a) | 0;
+    b = Math.abs(b) | 0;
+    while (b !== 0) {
+        const t = a % b;
+        a = b;
+        b = t;
+    }
+    return a;
+}
+
+function gcdMany(...nums) {
+    if (Array.isArray(nums[0])) nums = nums[0];
+    if (nums.length === 0) return 0;
+    return nums.reduce((acc, n) => {
+        if (acc === 0) return Math.abs(n) | 0;
+        let a = Math.abs(acc) | 0;
+        let b = Math.abs(n) | 0;
+        while (b !== 0) { const t = a % b; a = b; b = t; }
+        return a;
+    }, 0);
+}
+
+function lcmMany(...nums) {
+    if (Array.isArray(nums[0])) nums = nums[0];
+    if (nums.length === 0) return 0;
+    const fracs = nums.map((v) => {
+        const val = Number(v);
+        if (!Number.isFinite(val)) return { num: 0, den: 1 };
+        if (val === 0) return { num: 0, den: 1 };
+        const f = decToFrac(val);
+        return { num: Math.abs(f.numerator) | 0, den: Math.abs(f.denominator) | 0 };
+    });
+
+    if (fracs.some(f => f.num === 0)) return 0;
+
+    const lcmNums = fracs.reduce((acc, f) => {
+        if (acc === 0) return f.num;
+        return Math.abs((acc / gcd(acc, f.num)) * f.num);
+    }, fracs[0].num);
+
+    const gcdDens = fracs.reduce((acc, f) => gcd(acc, f.den), fracs[0].den);
+
+    if (gcdDens === 0) return 0;
+    return lcmNums / gcdDens;
+}
+
 function decToFrac(value, tolerance = 1e-6) {
     if (value === parseInt(value)) {
         return { numerator: value, denominator: 1 };
@@ -440,6 +463,55 @@ function decToFrac(value, tolerance = 1e-6) {
 
     let finalNumerator = negative ? -(h1 + integerPart * k1) : (h1 + integerPart * k1);
     return { numerator: finalNumerator, denominator: k1 };
+}
+
+function computeCycleLength(frequencies, opts = {}) {
+    const tolerance = (typeof opts.tolerance === 'number') ? opts.tolerance : 1e-9;
+    const sampleRate = opts.sampleRate || 48000;
+    const maxPracticalSeconds = (typeof opts.maxPracticalSeconds === 'number') ? opts.maxPracticalSeconds : 2 ** 16;
+
+    const inputs = Array.isArray(frequencies) ? frequencies : Array.from(frequencies || []);
+    const fracs = [];
+    for (let raw of inputs) {
+        const f = Math.abs(Number(raw));
+        if (!Number.isFinite(f) || f === 0) continue;
+        const frac = decToFrac(f, tolerance);
+        const approx = frac.numerator / frac.denominator;
+        const err = Math.abs(f - approx);
+        const allowed = Math.max(tolerance, Math.abs(f) * tolerance);
+        if (err > allowed) {
+        return { isPeriodic: false, reason: 'frequency not rational within tolerance', bad: { raw, f, approx, err, allowed }, periodSamples: NaN };
+        }
+        fracs.push({ f, numerator: frac.numerator, denominator: frac.denominator, approx, err });
+    }
+
+    if (fracs.length === 0) return { isPeriodic: false, reason: 'no non-zero finite frequencies (all DC or invalid)', periodSamples: NaN };
+
+    const nums = fracs.map(x => Math.abs(x.numerator) | 0);
+    const dens = fracs.map(x => Math.abs(x.denominator) | 0);
+
+    const gcdNums = gcdMany(nums);
+    const lcmDens = lcmMany(dens);
+
+    if (!Number.isFinite(gcdNums) || !Number.isFinite(lcmDens) || gcdNums === 0 || lcmDens === 0) {
+        return { isPeriodic: false, reason: 'degenerate gcd/lcm', periodSamples: NaN, detail: { fracs, gcdNums, lcmDens } };
+    }
+
+    const fRef = gcdNums / lcmDens;
+    const periodSeconds = lcmDens / gcdNums;
+    const periodSamples = Math.round(periodSeconds * sampleRate);
+
+    if (!Number.isFinite(periodSeconds) || periodSeconds > maxPracticalSeconds) {
+        return { isPeriodic: false, reason: 'period too large or non-finite', potentialPeriodSeconds: periodSeconds, potentialPeriodSamples: periodSamples, periodSamples: NaN };
+    }
+
+    return {
+        isPeriodic: true,
+        periodSeconds: periodSeconds,
+        periodSamples: periodSamples,
+        fRef: fRef,
+        detail: { fracs, gcdNums, lcmDens }
+    };
 }
 
 function combinePartialsInteger(A, B) {

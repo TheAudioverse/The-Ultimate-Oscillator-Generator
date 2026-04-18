@@ -24,15 +24,15 @@ window.addEventListener('resize', () => {
 
 //Creates audio context.
 const synthCtx = new AudioContext({
-  latencyHint: "interactive",
-  sampleRate: 48000,
-  sinkId: ''
+    latencyHint: "interactive",
+    sampleRate: 48000,
+    sinkId: ''
 });
 let uoSynthNode
 const oscAnalyser = synthCtx.createAnalyser();
 
 const gainNode = synthCtx.createGain();
-gainNode.gain.value = 0.5
+gainNode.gain.value = 1;
 
 const compressor = synthCtx.createDynamicsCompressor();
 compressor.threshold.value = -30;
@@ -42,12 +42,9 @@ compressor.release.value = 0.25;
 
 const volumeControl = document.getElementsByName("synth-param-'amp'")[0];
 
-volumeControl.addEventListener(
-  "input",
-  () => {
-    gainNode.gain.value = volumeControl.value;
-  },
-  false,
+volumeControl.addEventListener("input",
+    () => gainNode.gain.value = volumeControl.value, 
+    false
 )
 
 function calcOscillatorPartials(osc, sampleRate, opts = {}) {
@@ -1007,7 +1004,10 @@ setupUOSynth(0).then(async () => {
         }
     }
 
-    document.getElementById("export-wav-button").addEventListener("click", () => downloadWAV(oscillatorSamplesArray, oscillatorMaxAmp, "oscillator"));
+    document.getElementById("export-wav-button").addEventListener("click", () => {
+        if (oscillatorSamplesArray.length == 0) alert("There is no oscillator data to export... It is likely still generating, try again later.");
+        else downloadWAV(oscillatorSamplesArray, oscillatorMaxAmp, "oscillator");
+    });
 
     let isRecording = false;
 
