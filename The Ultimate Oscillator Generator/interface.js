@@ -1,5 +1,5 @@
 function wait(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 const clamp = (val, min, max) => {
@@ -46,91 +46,6 @@ volumeControl.addEventListener("input",
     () => gainNode.gain.value = volumeControl.value, 
     false
 )
-
-function calcOscillatorPartials(osc, sampleRate, opts = {}) {
-    const maxPartials = opts.maxPartials || 256;
-
-    const amps   = new Float32Array(maxPartials);
-    const phX    = new Float32Array(maxPartials);
-    const phY    = new Float32Array(maxPartials);
-    const cosInc = new Float32Array(maxPartials);
-    const sinInc = new Float32Array(maxPartials);
-    let count = 0;
-
-    const partialCount = Math.min(osc.frequencies.length, maxPartials);
-
-    for (let i = 0; i < partialCount; i++) {
-        const ratio = osc.frequencies[i];
-        if (!Number.isFinite(ratio)) continue;
-
-        let baseAmp = (osc.amplitudes[i] || 0);
-        let ampSign = Math.sign(baseAmp) || 1;
-        let amp = Math.abs(baseAmp);
-        if (amp == 0) continue;
-
-        const phase = (osc.phases[i] || 0) + (ampSign < 0 ? Math.PI : 0);
-        const inc = 2 * Math.PI * ratio / sampleRate;
-        const c = Math.cos(inc), s = Math.sin(inc);
-        const px = Math.cos(phase), py = Math.sin(phase);
-
-        if (count < maxPartials) {
-            amps[count] = amp;
-            phX[count] = px;
-            phY[count] = py;
-            cosInc[count] = c;
-            sinInc[count] = s;
-            count++;
-            continue;
-        }
-
-        let minIdx = 0;
-        let minAmp = amps[0];
-        for (let j = 1; j < count; j++) {
-            if (amps[j] < minAmp) { minAmp = amps[j]; minIdx = j; }
-        }
-
-        if (amp > minAmp) {
-            amps[minIdx] = amp;
-            phX[minIdx] = px;
-            phY[minIdx] = py;
-            cosInc[minIdx] = c;
-            sinInc[minIdx] = s;
-        }
-    }
-
-    if (count > 0) {
-        let peak = 0;
-        for (let i = 0; i < count; i++) {
-            const a = amps[i];
-            if (a > peak) peak = a;
-        }
-
-        if (peak > 0 && peak !== 1) {
-            const inv = 1 / peak;
-            for (let i = 0; i < count; i++) amps[i] *= inv;
-        }
-    }
-
-    if (count < maxPartials) {
-        return {
-            partialCount: count,
-            amps: amps.subarray(0, count),
-            phX: phX.subarray(0, count),
-            phY: phY.subarray(0, count),
-            cosInc: cosInc.subarray(0, count),
-            sinInc: sinInc.subarray(0, count)
-        }
-    } else {
-        return {
-            partialCount: count,
-            amps: amps,
-            phX: phX,
-            phY: phY,
-            cosInc: cosInc,
-            sinInc: sinInc
-        }
-    }
-}
 
 async function setupUOSynth(attempts) {
     if (attempts < 5) {
@@ -284,16 +199,22 @@ setupUOSynth(0).then(async () => {
                 break;
             case "givenOscillator":
                 const oscillator = event.data.oscillator;
-                oscillatorSamplesArray = oscillator._oscillatorSamples;
-                oscillatorMaxAmp = oscillator._oscillatorMaxAmp || 1;
-                let oscilltorPhazorInfo = undefined;
-                oscilltorPhazorInfo = calcOscillatorPartials({
+                let oscillatorPhazorInfo = undefined;
+                oscillatorPhazorInfo = calcOscillatorPartials({
                     frequencies: oscillator._oscillatorPartialFreqs, 
                     amplitudes: oscillator._oscillatorPartialAmps, 
                     phases: oscillator._oscillatorPartialPhases
                 }, visualSampleCount, {
                     maxPartials: oscillator._params._partialCount
                 });
+                wavetableWorker.postMessage({ type: 'synthesizeWavetable', oscName: oscillator._name, oscillatorPhazorInfo: calcOscillatorPartials({
+                    frequencies: oscillator._oscillatorPartialFreqs, 
+                    amplitudes: oscillator._oscillatorPartialAmps, 
+                    phases: oscillator._oscillatorPartialPhases
+                }, 48000, {
+                    maxPartials: oscillator._params._partialCount
+                }), oscillatorPeriod: Number.isNaN(oscillator._oscillatorPeriod) ? 48000 : oscillator._oscillatorPeriod });
+                document.body.style.cursor = 'wait';
 
                 drawOscVisualVersion++;
                 cancelAnimationFrame(visualOscRAF);
@@ -304,7 +225,26 @@ setupUOSynth(0).then(async () => {
                 oscCtx.strokeStyle = "rgb(0, 185, 185)";
                 oscCtx.lineWidth = 1;
                 
-                const N = oscilltorPhazorInfo.partialCount;
+                const N = oscillatorPhazorInfo.partialCount;
+
+                let freeRunMaxVal = 1;
+                let sineFreeRunMaxVal = 1;
+                const initPhX = oscillatorPhazorInfo.phX.map(v => v);
+                const initPhY = oscillatorPhazorInfo.phY.map(v => v);
+                for (let i = 0; i < visualSampleCount; i++) {
+                    let currentVal = 0;
+                    const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
+                    for (let k = 0; k < N; k++) {
+                        currentVal += amps[k] * phY[k];
+                        const xP = phX[k], yP = phY[k];
+                        phX[k] = xP * cI[k] - yP * sI[k];
+                        phY[k] = xP * sI[k] + yP * cI[k];
+                        if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
+                    }
+                    if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
+                }
+                oscillatorPhazorInfo.phX = initPhX;
+                oscillatorPhazorInfo.phY = initPhY;
 
                 let x;
                 let y;
@@ -316,7 +256,7 @@ setupUOSynth(0).then(async () => {
                 for (let i = 0; i < visualSampleCount; i++) {
                     let currentVal = 0;
                     x = (i / visualSampleCount * oscCvs.width);
-                    const amps = oscilltorPhazorInfo.amps, phX = oscilltorPhazorInfo.phX, phY = oscilltorPhazorInfo.phY, cI = oscilltorPhazorInfo.cosInc, sI = oscilltorPhazorInfo.sinInc;
+                    const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
                     if (visualOscDrawType == "oscilloscope") {
                         for (let k = 0; k < N; k++) {
                             currentVal += amps[k] * phY[k];
@@ -324,8 +264,9 @@ setupUOSynth(0).then(async () => {
                             phX[k] = xP * cI[k] - yP * sI[k];
                             phY[k] = xP * sI[k] + yP * cI[k];
                         }
+                        if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
 
-                        y = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                        y = clamp(currentVal / freeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
                         oscCtx.beginPath();
                         oscCtx.moveTo(prevX, prevY);
                         oscCtx.lineTo(x, y);
@@ -338,8 +279,9 @@ setupUOSynth(0).then(async () => {
                             const xP = phX[k], yP = phY[k];
                             phX[k] = xP * cI[k] - yP * sI[k];
                             phY[k] = xP * sI[k] + yP * cI[k];
+                            if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
 
-                            yArray[k] = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                            yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
                             oscCtx.beginPath();
                             oscCtx.moveTo(prevX, prevYArray[k]);
                             oscCtx.lineTo(x, yArray[k]);
@@ -364,8 +306,8 @@ setupUOSynth(0).then(async () => {
                     }
 
                     let currentVal = 0;
-                    const N = oscilltorPhazorInfo.partialCount;
-                    const amps = oscilltorPhazorInfo.amps, phX = oscilltorPhazorInfo.phX, phY = oscilltorPhazorInfo.phY, cI = oscilltorPhazorInfo.cosInc, sI = oscilltorPhazorInfo.sinInc;
+                    const N = oscillatorPhazorInfo.partialCount;
+                    const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
                     if (visualOscDrawType == "oscilloscope") {
                         for (let k = 0; k < N; k++) {
                             currentVal += amps[k] * phY[k];
@@ -373,8 +315,9 @@ setupUOSynth(0).then(async () => {
                             phX[k] = xP * cI[k] - yP * sI[k];
                             phY[k] = xP * sI[k] + yP * cI[k];
                         }
+                        if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
 
-                        const yVal = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                        const yVal = clamp(currentVal / freeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
                         oscCtx.beginPath();
                         oscCtx.moveTo(oscCvs.width - 2, prevY);
                         oscCtx.lineTo(oscCvs.width - 1, yVal);
@@ -383,12 +326,13 @@ setupUOSynth(0).then(async () => {
                         prevY = yVal;
                     } else if (visualOscDrawType == "fourierOscilloscope") {
                         for (let k = 0; k < N; k++) {
-                            currentVal = amps[k] / amps[0] * phY[k];
+                            currentVal = amps[k] * phY[k];
                             const xP = phX[k], yP = phY[k];
                             phX[k] = xP * cI[k] - yP * sI[k];
                             phY[k] = xP * sI[k] + yP * cI[k];
+                            if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
 
-                            yArray[k] = clamp(currentVal / oscillatorMaxAmp * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                            yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
                             oscCtx.beginPath();
                             oscCtx.moveTo(oscCvs.width - 2, prevYArray[k]);
                             oscCtx.lineTo(oscCvs.width - 1, yArray[k]);
@@ -410,6 +354,22 @@ setupUOSynth(0).then(async () => {
                 break;
         }
     };
+
+    const wavetableWorker = new Worker('The Ultimate Oscillator Generator/synthesizeWavetableWorker.js');
+    wavetableWorker.onmessage = (event) => {
+        switch (event.data.type) {
+            case 'error':
+                document.body.style.cursor = 'default';
+                alert(event.data.message);
+                break;
+            case 'givenWavetable':
+                uoSynthNode.port.postMessage({ type: 'givenWavetable', wavetable: event.data.wavetable, maxAmp: event.data.maxAmp, oscName: event.data.oscName });
+                oscillatorSamplesArray = event.data.wavetable;
+                oscillatorMaxAmp = event.data.maxAmp || 1;
+                document.body.style.cursor = 'default';
+                break;
+        }
+    }
 
     const messageFunctions = Object.freeze({
         createOsc: (oscName) => {
@@ -508,6 +468,7 @@ setupUOSynth(0).then(async () => {
             messageFunctions.createOsc(synthName);
         }
 
+        oscillatorSamplesArray = null;
         if (fractalSynthesis) {
             const argTextBox = document.getElementsByClassName('fractalize-arg-text-box')[0];
             messageFunctions.synthesize(argTextBox.value);
@@ -1005,7 +966,7 @@ setupUOSynth(0).then(async () => {
     }
 
     document.getElementById("export-wav-button").addEventListener("click", () => {
-        if (oscillatorSamplesArray.length == 0) alert("There is no oscillator data to export... It is likely still generating, try again later.");
+        if (!oscillatorSamplesArray) alert("There is no oscillator data to export... It is likely still generating, try again later.");
         else downloadWAV(oscillatorSamplesArray, oscillatorMaxAmp, "oscillator");
     });
 
@@ -1217,6 +1178,91 @@ setupUOSynth(0).then(async () => {
 }, () => {
     alert("Server side error: Audio context initialization failed. Check if the audio permission is given to this page and reload the page. If that doesn't work check your connection and reload the page.");
 });
+
+function calcOscillatorPartials(osc, sampleRate, opts = {}) {
+    const maxPartials = opts.maxPartials || 256;
+
+    const amps   = new Float32Array(maxPartials);
+    const phX    = new Float32Array(maxPartials);
+    const phY    = new Float32Array(maxPartials);
+    const cosInc = new Float32Array(maxPartials);
+    const sinInc = new Float32Array(maxPartials);
+    let count = 0;
+
+    const partialCount = Math.min(osc.frequencies.length, maxPartials);
+
+    for (let i = 0; i < partialCount; i++) {
+        const ratio = osc.frequencies[i];
+        if (!Number.isFinite(ratio)) continue;
+
+        let baseAmp = (osc.amplitudes[i] || 0);
+        let ampSign = Math.sign(baseAmp) || 1;
+        let amp = Math.abs(baseAmp);
+        if (amp == 0) continue;
+
+        const phase = (osc.phases[i] || 0) + (ampSign < 0 ? Math.PI : 0);
+        const inc = 2 * Math.PI * ratio / sampleRate;
+        const c = Math.cos(inc), s = Math.sin(inc);
+        const px = Math.cos(phase), py = Math.sin(phase);
+
+        if (count < maxPartials) {
+            amps[count] = amp;
+            phX[count] = px;
+            phY[count] = py;
+            cosInc[count] = c;
+            sinInc[count] = s;
+            count++;
+            continue;
+        }
+
+        let minIdx = 0;
+        let minAmp = amps[0];
+        for (let j = 1; j < count; j++) {
+            if (amps[j] < minAmp) { minAmp = amps[j]; minIdx = j; }
+        }
+
+        if (amp > minAmp) {
+            amps[minIdx] = amp;
+            phX[minIdx] = px;
+            phY[minIdx] = py;
+            cosInc[minIdx] = c;
+            sinInc[minIdx] = s;
+        }
+    }
+
+    if (count > 0) {
+        let peak = 0;
+        for (let i = 0; i < count; i++) {
+            const a = amps[i];
+            if (a > peak) peak = a;
+        }
+
+        if (peak > 0 && peak !== 1) {
+            const inv = 1 / peak;
+            for (let i = 0; i < count; i++) amps[i] *= inv;
+        }
+    }
+
+    if (count < maxPartials) {
+        return {
+            partialCount: count,
+            amps: amps.subarray(0, count),
+            phX: phX.subarray(0, count),
+            phY: phY.subarray(0, count),
+            cosInc: cosInc.subarray(0, count),
+            sinInc: sinInc.subarray(0, count)
+        }
+    } else {
+        return {
+            partialCount: count,
+            amps: amps,
+            phX: phX,
+            phY: phY,
+            cosInc: cosInc,
+            sinInc: sinInc
+        }
+    }
+}
 
 // ---------------------- //
 // Visualization section. //

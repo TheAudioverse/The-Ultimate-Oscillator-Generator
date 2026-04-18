@@ -123,18 +123,8 @@ class UOsc {
             this._oscillatorPartialAmps = fractalOscillatorData.amplitudes;
             this._oscillatorPartialPhases = fractalOscillatorData.phases;
         }
-        this._oscillatorPeriod = computeCycleLength(this._oscillatorPartialFreqs).periodSamples;
         
-        this._oscillatorMaxAmp = 1;
-        this._oscillatorSamples = new Float64Array(Number.isNaN(this._oscillatorPeriod) ? 48000 : this._oscillatorPeriod);
-        for (let sample = 0; sample < this._oscillatorSamples.length; sample++) {
-            let currentVal = 0;
-            for (let partialIndex = 0; partialIndex < this._params._partialCount; partialIndex++) {
-                currentVal += this.waveVector(sample / 48000, partialIndex)[1];
-            }
-            this._oscillatorSamples[sample] = currentVal;
-            if (Math.abs(currentVal) > this._oscillatorMaxAmp) this._oscillatorMaxAmp = Math.abs(currentVal);
-        }
+        this._oscillatorPeriod = computeCycleLength(this._oscillatorPartialFreqs).periodSamples;
     }
 
     get oscillatorSamples() {
@@ -190,6 +180,12 @@ class UOSynth extends AudioWorkletProcessor {
                         this.port.postMessage({ type: "givenOscillator", oscillator: this._oscStructure[this._selectedOsc] });
                     } else {
                         this.port.postMessage({ type: "error", message: "No such oscillator exists (for the modulating oscillator)." });
+                    }
+                    break;
+                case "givenWavetable":
+                    if (event.data.oscName in this._oscStructure) {
+                        this._oscStructure[event.data.oscName]._oscillatorSamples = event.data.wavetable;
+                        this._oscStructure[event.data.oscName]._oscillatorMaxAmp = event.data.maxAmp || 1;
                     }
                     break;
                 case "renameOsc":
