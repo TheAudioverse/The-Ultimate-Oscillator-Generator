@@ -1160,7 +1160,7 @@ setupUOSynth(0).then(async () => {
                 clearSessionBtn.addEventListener('click', () => {
                     const promptText = document.getElementById('prompt-text');
                     const promptDiv = document.getElementById('prompt-input-elements');
-                    promptText.innerText = 'Are you sure you want to clear the session? This action cannot be undone.';
+                    promptText.innerText = 'Are you sure you want to clear the session?';
                     promptDiv.innerHTML = '<button id="session-manager-confirm-clear-button" class="session-manager-button" style="width: 80px;">Confirm</button> <button id="session-manager-cancel-clear-button" class="session-manager-button" style="width: 80px;">Cancel</button>';
                     
                     document.getElementById('session-manager-confirm-clear-button').addEventListener('click', () => {

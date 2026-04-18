@@ -114,9 +114,9 @@ class UOsc {
             if (useRealNums == false) useRealNums = this._params._pull % 1 != 0 || this._params._partialFrequencyInverter != 0 || elseOsc._params._pull % 1 != 0 || elseOsc._params._partialFrequencyInverter != 0;
             
             if (useRealNums) {
-                fractalOscillatorData = combinePartialsReal({ frequencies: this._oscillatorPartialFreqs, amplitudes: this._oscillatorPartialAmps, phases: this._oscillatorPartialPhases }, { frequencies: elseOsc._oscillatorPartialFreqs, amplitudes: elseOsc._oscillatorPartialAmps, phases: elseOsc._oscillatorPartialPhases });
+                fractalOscillatorData = combinePartialsReal({ frequencies: this._oscillatorPartialFreqs, amplitudes: this._oscillatorPartialAmps, phases: this._oscillatorPartialPhases }, { frequencies: elseOsc._oscillatorPartialFreqs.slice(0, this._params._partialCount), amplitudes: elseOsc._oscillatorPartialAmps.slice(0, this._params._partialCount), phases: elseOsc._oscillatorPartialPhases.slice(0, this._params._partialCount) });
             } else {
-                fractalOscillatorData = combinePartialsInteger({ frequencies: this._oscillatorPartialFreqs, amplitudes: this._oscillatorPartialAmps, phases: this._oscillatorPartialPhases }, { frequencies: elseOsc._oscillatorPartialFreqs, amplitudes: elseOsc._oscillatorPartialAmps, phases: elseOsc._oscillatorPartialPhases });
+                fractalOscillatorData = combinePartialsInteger({ frequencies: this._oscillatorPartialFreqs, amplitudes: this._oscillatorPartialAmps, phases: this._oscillatorPartialPhases }, { frequencies: elseOsc._oscillatorPartialFreqs.slice(0, this._params._partialCount), amplitudes: elseOsc._oscillatorPartialAmps.slice(0, this._params._partialCount), phases: elseOsc._oscillatorPartialPhases.slice(0, this._params._partialCount) });
             }
 
             this._oscillatorPartialFreqs = fractalOscillatorData.frequencies;
