@@ -125,6 +125,7 @@ class UOsc {
         }
         
         this._oscillatorPeriod = computeCycleLength(this._oscillatorPartialFreqs).periodSamples;
+        this._oscillatorSamples = null;
     }
 
     get oscillatorSamples() {
@@ -137,11 +138,14 @@ class UOSynth extends AudioWorkletProcessor {
         super();
 
         this.port.onmessage = (event) => {
-            console.log('New Message from Main thread: ', event.data);
+            console.log('From UOsc Synth: New Message from Main thread: ', event.data);
 
             switch (event.data.type) {
                 case "testing":
                     this.port.postMessage({ data: "received..." });
+                    break;
+                case "LUTSineData":
+                    this._LUTSineData = event.data.data;
                     break;
                 case "createOsc":
                     this._oscStructure[event.data.oscName] = new UOsc(event.data.oscName);
@@ -311,6 +315,17 @@ class UOSynth extends AudioWorkletProcessor {
             }
         }
 
+        this._LUTSineData = null;
+        this._sine = (t) => {
+            if (this._LUTSineData) {
+                t = t - Math.floor(t);
+                const index = t * this._LUTSineData.length;
+                const idx0 = Math.floor(index);
+                const idx1 = (idx0 + 1) % this._LUTSineData.length;
+                const frac = index - idx0;
+                return this._LUTSineData[idx0] + (this._LUTSineData[idx1] - this._LUTSineData[idx0]) * frac;
+            }
+        }
         this._oscStructure = {};
         this._selectedOsc = "";
         this._voices = [];
@@ -354,13 +369,19 @@ class UOSynth extends AudioWorkletProcessor {
                         voice.phase = ((voice.phase % period) + period) % period;
                     } else {
                         let preMixCurrentVal = 0;
-                        const N = voice._partialCount;
+                        const partialCount = voice._partialCount;
                         const amps = voice._amps, phX = voice._phX, phY = voice._phY, cI = voice._cosInc, sI = voice._sinInc;
-                        for (let k = 0; k < N; k++) {
+                        for (let k = 0; k < partialCount; k++) {
                             preMixCurrentVal += amps[k] * phY[k];
                             const x = phX[k], y = phY[k];
-                            phX[k] = x * cI[k] - y * sI[k];
-                            phY[k] = x * sI[k] + y * cI[k];
+                            const mag = x * x + y * y;
+                            phX[k] = (x * cI[k] - y * sI[k]);
+                            phY[k] = (x * sI[k] + y * cI[k]);
+                            if (Math.abs(1 - mag) > 1e-6) {
+                                const normFactor = 1 / Math.sqrt(mag);
+                                phX[k] *= normFactor;
+                                phY[k] *= normFactor;
+                            }
                         }
                         if (Math.abs(preMixCurrentVal) > voice.freeRunMaxVal) voice.freeRunMaxVal = Math.abs(preMixCurrentVal);
                         currentVal += preMixCurrentVal / voice.freeRunMaxVal * voice.velocity * smooth((voice.sampleCounter + 1) / this._declickSampleTime);

@@ -138,7 +138,7 @@ setupUOSynth(0).then(async () => {
     ];
 
     uoSynthNode.port.onmessage = async (event) => {
-        console.log('Message from worklet:', event.data);
+        console.log('Message from UOsc Synth:', event.data);
 
         switch (event.data.type) {
             case "error":
@@ -207,14 +207,19 @@ setupUOSynth(0).then(async () => {
                 }, visualSampleCount, {
                     maxPartials: oscillator._params._partialCount
                 });
-                wavetableWorker.postMessage({ type: 'synthesizeWavetable', oscName: oscillator._name, oscillatorPhazorInfo: calcOscillatorPartials({
-                    frequencies: oscillator._oscillatorPartialFreqs, 
-                    amplitudes: oscillator._oscillatorPartialAmps, 
-                    phases: oscillator._oscillatorPartialPhases
-                }, 48000, {
-                    maxPartials: oscillator._params._partialCount
-                }), oscillatorPeriod: Number.isNaN(oscillator._oscillatorPeriod) ? 48000 : oscillator._oscillatorPeriod });
-                document.body.style.cursor = 'wait';
+                if (oscillator._oscillatorSamples) {
+                    oscillatorSamplesArray = oscillator._oscillatorSamples;
+                    oscillatorMaxAmp = oscillator._oscillatorMaxAmp;
+                } else {
+                    wavetableWorker.postMessage({ type: 'synthesizeWavetable', oscName: oscillator._name, oscillatorPhazorInfo: calcOscillatorPartials({
+                        frequencies: oscillator._oscillatorPartialFreqs, 
+                        amplitudes: oscillator._oscillatorPartialAmps, 
+                        phases: oscillator._oscillatorPartialPhases
+                    }, 48000, {
+                        maxPartials: oscillator._params._partialCount
+                    }), oscillatorPeriod: Number.isNaN(oscillator._oscillatorPeriod) ? 48000 : oscillator._oscillatorPeriod });
+                    document.getElementById("export-wav-button").style.cursor = 'wait';
+                }
 
                 drawOscVisualVersion++;
                 cancelAnimationFrame(visualOscRAF);
@@ -237,8 +242,14 @@ setupUOSynth(0).then(async () => {
                     for (let k = 0; k < N; k++) {
                         currentVal += amps[k] * phY[k];
                         const xP = phX[k], yP = phY[k];
-                        phX[k] = xP * cI[k] - yP * sI[k];
-                        phY[k] = xP * sI[k] + yP * cI[k];
+                        const mag = xP * xP + yP * yP;
+                        phX[k] = (xP * cI[k] - yP * sI[k]);
+                        phY[k] = (xP * sI[k] + yP * cI[k]);
+                        if (Math.abs(1 - mag) > 1e-6) {
+                            const normFactor = 1 / Math.sqrt(mag);
+                            phX[k] *= normFactor;
+                            phY[k] *= normFactor;
+                        }
                         if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
                     }
                     if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
@@ -261,8 +272,14 @@ setupUOSynth(0).then(async () => {
                         for (let k = 0; k < N; k++) {
                             currentVal += amps[k] * phY[k];
                             const xP = phX[k], yP = phY[k];
-                            phX[k] = xP * cI[k] - yP * sI[k];
-                            phY[k] = xP * sI[k] + yP * cI[k];
+                            const mag = xP * xP + yP * yP;
+                            phX[k] = (xP * cI[k] - yP * sI[k]);
+                            phY[k] = (xP * sI[k] + yP * cI[k]);
+                            if (Math.abs(1 - mag) > 1e-6) {
+                                const normFactor = 1 / Math.sqrt(mag);
+                                phX[k] *= normFactor;
+                                phY[k] *= normFactor;
+                            }
                         }
                         if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
 
@@ -277,8 +294,14 @@ setupUOSynth(0).then(async () => {
                         for (let k = 0; k < N; k++) {
                             currentVal = amps[k] / amps[0] * phY[k];
                             const xP = phX[k], yP = phY[k];
-                            phX[k] = xP * cI[k] - yP * sI[k];
-                            phY[k] = xP * sI[k] + yP * cI[k];
+                            const mag = xP * xP + yP * yP;
+                            phX[k] = (xP * cI[k] - yP * sI[k]);
+                            phY[k] = (xP * sI[k] + yP * cI[k]);
+                            if (Math.abs(1 - mag) > 1e-6) {
+                                const normFactor = 1 / Math.sqrt(mag);
+                                phX[k] *= normFactor;
+                                phY[k] *= normFactor;
+                            }
                             if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
 
                             yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
@@ -312,8 +335,14 @@ setupUOSynth(0).then(async () => {
                         for (let k = 0; k < N; k++) {
                             currentVal += amps[k] * phY[k];
                             const xP = phX[k], yP = phY[k];
-                            phX[k] = xP * cI[k] - yP * sI[k];
-                            phY[k] = xP * sI[k] + yP * cI[k];
+                            const mag = xP * xP + yP * yP;
+                            phX[k] = (xP * cI[k] - yP * sI[k]);
+                            phY[k] = (xP * sI[k] + yP * cI[k]);
+                            if (Math.abs(1 - mag) > 1e-6) {
+                                const normFactor = 1 / Math.sqrt(mag);
+                                phX[k] *= normFactor;
+                                phY[k] *= normFactor;
+                            }
                         }
                         if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
 
@@ -328,8 +357,14 @@ setupUOSynth(0).then(async () => {
                         for (let k = 0; k < N; k++) {
                             currentVal = amps[k] * phY[k];
                             const xP = phX[k], yP = phY[k];
-                            phX[k] = xP * cI[k] - yP * sI[k];
-                            phY[k] = xP * sI[k] + yP * cI[k];
+                            const mag = xP * xP + yP * yP;
+                            phX[k] = (xP * cI[k] - yP * sI[k]);
+                            phY[k] = (xP * sI[k] + yP * cI[k]);
+                            if (Math.abs(1 - mag) > 1e-6) {
+                                const normFactor = 1 / Math.sqrt(mag);
+                                phX[k] *= normFactor;
+                                phY[k] *= normFactor;
+                            }
                             if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
 
                             yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
@@ -357,19 +392,30 @@ setupUOSynth(0).then(async () => {
 
     const wavetableWorker = new Worker('The Ultimate Oscillator Generator/synthesizeWavetableWorker.js');
     wavetableWorker.onmessage = (event) => {
+        console.log('Message from wavetable worker:', event.data);
+
         switch (event.data.type) {
             case 'error':
-                document.body.style.cursor = 'default';
+                document.getElementById("export-wav-button").style.cursor = 'pointer';
+                alert(event.data.message);
+                break;
+            case 'alert':
                 alert(event.data.message);
                 break;
             case 'givenWavetable':
-                uoSynthNode.port.postMessage({ type: 'givenWavetable', wavetable: event.data.wavetable, maxAmp: event.data.maxAmp, oscName: event.data.oscName });
-                oscillatorSamplesArray = event.data.wavetable;
+                oscillatorSamplesArray = event.data.wavetable.map(v => v);
                 oscillatorMaxAmp = event.data.maxAmp || 1;
-                document.body.style.cursor = 'default';
+                uoSynthNode.port.postMessage({ type: 'givenWavetable', wavetable: event.data.wavetable, maxAmp: event.data.maxAmp, oscName: event.data.oscName }, [event.data.wavetable.buffer]);
+                document.getElementById("export-wav-button").style.cursor = 'pointer';
+                break;
+            case 'testingResponse':
+                console.log('Testing response received from worker:', event.data.data);
+                uoSynthNode.port.postMessage({ type: 'LUTSineData', data: event.data.data });
                 break;
         }
     }
+
+    wavetableWorker.postMessage({ type: 'testing' });
 
     const messageFunctions = Object.freeze({
         createOsc: (oscName) => {
