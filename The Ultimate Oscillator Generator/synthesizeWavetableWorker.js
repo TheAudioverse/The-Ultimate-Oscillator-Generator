@@ -63,7 +63,7 @@ self.addEventListener('message', (event) => {
                 const completeTime = (endTime - startTime) / 1000;
                 const errorTerm = ((completeTime * 0.5 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.5)]) + (completeTime * 0.25 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.25)]) + (completeTime * 0.75 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.75)]) + (completeTime * 0.1 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.1)])) / 4;
                 console.log(`Wavetable synthesis completed in ${toHMSms(completeTime)}. Average Sample Generation Time: ${avgSampleTime.toFixed(4)} ms. Estimation error: ${errorTerm}`);
-                self.postMessage({ type: 'givenWavetable', wavetable, oscName: event.data.oscName, maxAmp }, [wavetable.buffer]);
+                self.postMessage({ type: 'givenWavetable', oscName: event.data.oscName, wavetable, maxAmp }, [wavetable.buffer]);
             } catch (error) {
                 console.error('Error creating wavetable:', error);
                 self.postMessage({ type: 'error', message: 'Failed to create wavetable. There will be no oscillator to export :(' });

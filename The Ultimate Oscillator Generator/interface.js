@@ -415,8 +415,9 @@ setupUOSynth(0).then(async () => {
                 exportWavBtn.setAttribute('data-export-estimate-time', event.data.estimateTime);
                 break;
             case 'givenWavetable':
-                oscillatorSamplesArray = event.data.wavetable;
+                oscillatorSamplesArray = event.data.wavetable.map(v => v);
                 oscillatorMaxAmp = event.data.maxAmp || 1;
+                uoSynthNode.port.postMessage({ type: 'givenWavetable', oscName: event.data.oscName, wavetable: event.data.wavetable, maxAmp: oscillatorMaxAmp }, [event.data.wavetable.buffer]);
                 document.getElementById("export-wav-button").innerHTML = `Export .wav`;
                 document.getElementById("export-wav-button").style.cursor = 'pointer';
                 break;
