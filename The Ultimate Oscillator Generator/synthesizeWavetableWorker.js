@@ -1,4 +1,4 @@
-const LUTSinusoidal = new Float32Array(96000);
+const LUTSinusoidal = new Float32Array(4096);
 
 for (let sample = 0; sample < LUTSinusoidal.length; sample++) {
     LUTSinusoidal[sample] = Math.sin(sample / LUTSinusoidal.length * 2 * Math.PI);
@@ -19,8 +19,8 @@ self.addEventListener('message', (event) => {
             let wavetable;
             try {
                 wavetable = new Float32Array(tableLength);
-                console.log('From wavetable worker: Wavetable synthesis started; table size: ', tableLength, 'samples', toUnitBytes(tableLength * 2), toHMSMS(tableLength / 48000));
-                if (tableLength / 48000 >= 30) self.postMessage({ type: 'alert', message: `Wavetable synthesis started; table size: ${tableLength} samples (${toUnitBytes(tableLength * 2)}), duration: ${toHMSMS(tableLength / 48000)}` });
+                console.log('From wavetable worker: Wavetable synthesis started; table size: ', tableLength, 'samples', toUnitBytes(tableLength * 2), toHMSms(tableLength / 48000));
+                if (tableLength / 48000 >= 30) self.postMessage({ type: 'alert', message: `Wavetable synthesis started; table size: ${tableLength} samples (${toUnitBytes(tableLength * 2)}), duration: ${toHMSms(tableLength / 48000)}` });
                 const N = oscillatorPhazorInfo.partialCount;
                 let maxAmp = 0;
                 const startTime = performance.now();
@@ -39,6 +39,7 @@ self.addEventListener('message', (event) => {
                         avgSampleTime += (shortTimeAvgSampleTime - avgSampleTime) / avgSampleTimeTerms;
                         estimateTime = avgSampleTime * (tableLength - sample) * 0.001;
                         loggedEstimateTimes.push(estimateTime);
+                        self.postMessage({ type: 'progressUpdate', progress: Math.round(sample / tableLength * 100), estimateTime: toHMSms(estimateTime) });
                         estimateStartTime = performance.now();
                     }
                     let currentVal = 0;
@@ -61,7 +62,7 @@ self.addEventListener('message', (event) => {
                 const endTime = performance.now();
                 const completeTime = (endTime - startTime) / 1000;
                 const errorTerm = ((completeTime * 0.5 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.5)]) + (completeTime * 0.25 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.25)]) + (completeTime * 0.75 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.75)]) + (completeTime * 0.1 - loggedEstimateTimes[Math.ceil(loggedEstimateTimes.length * 0.1)])) / 4;
-                console.log(`Wavetable synthesis completed in ${toHMSMS(completeTime)}. Average Sample Generation Time: ${avgSampleTime.toFixed(4)} ms. Estimation error: ${errorTerm}`);
+                console.log(`Wavetable synthesis completed in ${toHMSms(completeTime)}. Average Sample Generation Time: ${avgSampleTime.toFixed(4)} ms. Estimation error: ${errorTerm}`);
                 self.postMessage({ type: 'givenWavetable', wavetable, oscName: event.data.oscName, maxAmp }, [wavetable.buffer]);
             } catch (error) {
                 console.error('Error creating wavetable:', error);
@@ -72,7 +73,7 @@ self.addEventListener('message', (event) => {
     }
 });
 
-function toHMSMS(time) {
+function toHMSms(time) {
     const hours = Math.floor(time / 3600);
     const minutes = Math.floor((time % 3600) / 60);
     const seconds = Math.floor(time % 60);
@@ -83,7 +84,7 @@ function toHMSMS(time) {
     } else if (minutes > 0) {
         return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
     } else {
-        return `${seconds}.${milliseconds.toString().padStart(3, '0')}`;
+        return `${seconds}.${milliseconds.toString().padStart(3, '0')} seconds`;
     }
 }
 

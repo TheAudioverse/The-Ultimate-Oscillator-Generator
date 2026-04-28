@@ -22,7 +22,6 @@ window.addEventListener('resize', () => {
     }
 });
 
-//Creates audio context.
 const synthCtx = new AudioContext({
     latencyHint: "interactive",
     sampleRate: 48000,
@@ -69,6 +68,14 @@ window.addEventListener('pointerdown', () => {
         synthCtx.resume();
     }
 });
+
+function toHMS(time) {
+    const hours = Math.floor(time / 3600);
+    const minutes = Math.floor((time % 3600) / 60);
+    const seconds = Math.floor(time % 60);
+    
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
 
 setupUOSynth(0).then(async () => {
     let selectedOscName = '';
@@ -402,10 +409,15 @@ setupUOSynth(0).then(async () => {
             case 'alert':
                 alert(event.data.message);
                 break;
+            case 'progressUpdate':
+                const exportWavBtn = document.getElementById("export-wav-button");
+                exportWavBtn.innerHTML = `${event.data.progress}%`;
+                exportWavBtn.setAttribute('data-export-estimate-time', event.data.estimateTime);
+                break;
             case 'givenWavetable':
-                oscillatorSamplesArray = event.data.wavetable.map(v => v);
+                oscillatorSamplesArray = event.data.wavetable;
                 oscillatorMaxAmp = event.data.maxAmp || 1;
-                uoSynthNode.port.postMessage({ type: 'givenWavetable', wavetable: event.data.wavetable, maxAmp: event.data.maxAmp, oscName: event.data.oscName }, [event.data.wavetable.buffer]);
+                document.getElementById("export-wav-button").innerHTML = `Export .wav`;
                 document.getElementById("export-wav-button").style.cursor = 'pointer';
                 break;
             case 'testingResponse':
@@ -1030,23 +1042,35 @@ setupUOSynth(0).then(async () => {
         }
     }
 
-    document.getElementById("export-wav-button").addEventListener("click", () => {
-        if (!oscillatorSamplesArray) alert("There is no oscillator data to export... It is likely still generating, try again later.");
+    const exportWavButton = document.getElementById("export-wav-button");
+
+    exportWavButton.addEventListener("click", () => {
+        if (!oscillatorSamplesArray) {
+            let alertAppendText = ''
+            if (exportWavButton.innerHTML !== 'Export .wav') alertAppendText = `The data is still generating; current progress is ${exportWavButton.innerHTML}. Estimated time remaiing is ${exportWavButton.getAttribute('data-export-estimate-time')}`;
+            else alertAppendText = 'Uhh, something went wrong...'
+            alert(`There is no oscillator data to export... ${alertAppendText}`);
+        }
         else downloadWAV(oscillatorSamplesArray, oscillatorMaxAmp, "oscillator");
     });
 
     let isRecording = false;
 
     const recordButton = () => {
-        if (!uoSynthNode) {
-            alert("You can't record right now, try clicking somewhere..");
-            return;
-        }
-
         uoSynthNode.port.postMessage({ type: 'startRecording' });
         isRecording = true;
         const recordBtn = document.getElementById('record-wav-button');
-        recordBtn.innerText = 'Recording...';
+        let recordingTime = 0;
+        const incrementTimePromise = async () => {
+            while (isRecording) {
+                await wait(1000);
+                if (isRecording) {
+                    recordingTime += 1;
+                    recordBtn.innerText = `${toHMS(recordingTime)}`;
+                }
+            }
+        }
+        incrementTimePromise();
         recordBtn.style.backgroundColor = 'rgb(255, 0, 0)';
 
         const stopRecordingFunction = () => {

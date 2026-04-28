@@ -4,7 +4,6 @@ class UOsc {
         this._params;
         this._arrayParams = {};
         this._elseOscName;
-        this._oscillatorSamples;
         this._oscillatorPeriod = 0;
         this._oscillatorMaxAmp = 1;
         this._oscillatorPartialFreqs = [];
@@ -70,20 +69,22 @@ class UOsc {
         }
         this._elseOscName = elseOsc ? elseOsc._name : null;
 
-        this._oscillatorPartialFreqs = [];
-        this._oscillatorPartialAmps = [];
-        this._oscillatorPartialPhases = [];
+        if (!this._params._isFractal || this._oscillatorPartialFreqs.length == 0 || this._oscillatorPartialAmps.length == 0 || this._oscillatorPartialPhases.length == 0) {
+            this._oscillatorPartialFreqs = [];
+            this._oscillatorPartialAmps = [];
+            this._oscillatorPartialPhases = [];
 
-        for (let i = 0; i < this._params._partialCount; i++) {
-            for (const [_key, value] of Object.entries(this._arrayParams)) {
-                this._params[_key] = value[i % value.length];
+            for (let i = 0; i < this._params._partialCount; i++) {
+                for (const [_key, value] of Object.entries(this._arrayParams)) {
+                    this._params[_key] = value[i % value.length];
+                }
+                this._oscillatorPartialFreqs[i] = this.oscillatorPartialFrequencies(i);
+                this._oscillatorPartialAmps[i] = this.oscillatorPartialAmplitudes(i);
+                this._oscillatorPartialPhases[i] = this.oscillatorPartialPhases(i, false);
             }
-            this._oscillatorPartialFreqs[i] = this.oscillatorPartialFrequencies(i);
-            this._oscillatorPartialAmps[i] = this.oscillatorPartialAmplitudes(i);
-            this._oscillatorPartialPhases[i] = this.oscillatorPartialPhases(i, false);
-        }
-        if ('_wavetype' in this._arrayParams) {
-            this._params._wavetype = this._arrayParams._wavetype[0];
+            if ('_wavetype' in this._arrayParams) {
+                this._params._wavetype = this._arrayParams._wavetype[0];
+            }
         }
         
         if (this._params._isFractal) {
@@ -125,7 +126,6 @@ class UOsc {
         }
         
         this._oscillatorPeriod = computeCycleLength(this._oscillatorPartialFreqs).periodSamples;
-        this._oscillatorSamples = null;
     }
 
     get oscillatorSamples() {
@@ -138,7 +138,9 @@ class UOSynth extends AudioWorkletProcessor {
         super();
 
         this.port.onmessage = (event) => {
-            console.log('From UOsc Synth: New Message from Main thread: ', event.data);
+            if (event.data.type != 'addVoice' && event.data.type != 'removeVoice' && event.data.type != 'changeOctave' && event.data.type != 'setOctave' && event.data.type != 'transpose' && event.data.type != 'setTransposition') {
+                console.log('From UOsc Synth: New Message from Main thread: ', event.data);
+            }
 
             switch (event.data.type) {
                 case "testing":
@@ -184,12 +186,6 @@ class UOSynth extends AudioWorkletProcessor {
                         this.port.postMessage({ type: "givenOscillator", oscillator: this._oscStructure[this._selectedOsc] });
                     } else {
                         this.port.postMessage({ type: "error", message: "No such oscillator exists (for the modulating oscillator)." });
-                    }
-                    break;
-                case "givenWavetable":
-                    if (event.data.oscName in this._oscStructure) {
-                        this._oscStructure[event.data.oscName]._oscillatorSamples = event.data.wavetable;
-                        this._oscStructure[event.data.oscName]._oscillatorMaxAmp = event.data.maxAmp || 1;
                     }
                     break;
                 case "renameOsc":
@@ -331,7 +327,6 @@ class UOSynth extends AudioWorkletProcessor {
         this._voices = [];
         this._octave = 5;
         this._transpose = 0;
-        this._playWavetable = false;
         this._declickSampleTime = 512;
         this._prevSamplesBuffer;
         this._isRecording = false;
@@ -347,45 +342,24 @@ class UOSynth extends AudioWorkletProcessor {
                 let currentVal = 0;
                 for (let voice of this._voices) {
                     if (!(voice.oscName in this._oscStructure)) continue;
-                    const osc = this._oscStructure[voice.oscName];
-                    const frequency = (440 * Math.pow(2, (3 + voice.frequency + this._transpose) / 12 + (this._octave - 5))) / osc._params._wavetype;
-                    this._playWavetable = false;
                     
-                    if (this._playWavetable) {
-                        const period = osc._oscillatorSamples.length;
-                        let idx = voice.phase % period;
-                        if (idx < 0) idx += period;
-                        const i0 = Math.floor(idx);
-                        const i1 = Math.ceil(idx) % osc._oscillatorSamples.length;
-                        const frac = idx - i0;
-                        const a = osc.oscillatorSamples[i0];
-                        const b = osc.oscillatorSamples[i1];
-                        currentVal += lerp(a, b, frac) * voice.velocity * smooth((voice.sampleCounter + 1) / 512);
-                        voice.phase = idx + frequency;
-                        if (voice.phase >= Number.MAX_SAFE_INTEGER - 1e6) {
-                            voice.phase = (voice.phase % period) + period;
+                    let preMixCurrentVal = 0;
+                    const partialCount = voice._partialCount;
+                    const amps = voice._amps, phX = voice._phX, phY = voice._phY, cI = voice._cosInc, sI = voice._sinInc;
+                    for (let k = 0; k < partialCount; k++) {
+                        preMixCurrentVal += amps[k] * phY[k];
+                        const x = phX[k], y = phY[k];
+                        const mag = x * x + y * y;
+                        phX[k] = (x * cI[k] - y * sI[k]);
+                        phY[k] = (x * sI[k] + y * cI[k]);
+                        if (Math.abs(1 - mag) > 1e-6) {
+                            const normFactor = 1 / Math.sqrt(mag);
+                            phX[k] *= normFactor;
+                            phY[k] *= normFactor;
                         }
-                        if (!voice || typeof voice.phase !== 'number') continue;
-                        voice.phase = ((voice.phase % period) + period) % period;
-                    } else {
-                        let preMixCurrentVal = 0;
-                        const partialCount = voice._partialCount;
-                        const amps = voice._amps, phX = voice._phX, phY = voice._phY, cI = voice._cosInc, sI = voice._sinInc;
-                        for (let k = 0; k < partialCount; k++) {
-                            preMixCurrentVal += amps[k] * phY[k];
-                            const x = phX[k], y = phY[k];
-                            const mag = x * x + y * y;
-                            phX[k] = (x * cI[k] - y * sI[k]);
-                            phY[k] = (x * sI[k] + y * cI[k]);
-                            if (Math.abs(1 - mag) > 1e-6) {
-                                const normFactor = 1 / Math.sqrt(mag);
-                                phX[k] *= normFactor;
-                                phY[k] *= normFactor;
-                            }
-                        }
-                        if (Math.abs(preMixCurrentVal) > voice.freeRunMaxVal) voice.freeRunMaxVal = Math.abs(preMixCurrentVal);
-                        currentVal += preMixCurrentVal / voice.freeRunMaxVal * voice.velocity * smooth((voice.sampleCounter + 1) / this._declickSampleTime);
                     }
+                    if (Math.abs(preMixCurrentVal) > voice.freeRunMaxVal) voice.freeRunMaxVal = Math.abs(preMixCurrentVal);
+                    currentVal += preMixCurrentVal / voice.freeRunMaxVal * voice.velocity * smooth((voice.sampleCounter + 1) / this._declickSampleTime);
 
                     if (voice.removing == false) voice.sampleCounter++;
                     else voice.sampleCounter--;
