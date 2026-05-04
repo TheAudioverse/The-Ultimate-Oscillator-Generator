@@ -235,8 +235,8 @@
         display: flex;
         flex-direction: row;
         justify-content: space-between;">
-        <button style="font-size: 36px;" id="prev-pattern">⧏</button>
-        <button style="font-size: 36px;" id="next-pattern">⧐</button>
+        <button style="font-size: 36px;" id="prev-bar">⧏</button>
+        <button style="font-size: 36px;" id="next-bar">⧐</button>
       </div>
     </div>
     <div style="
@@ -246,7 +246,18 @@
         flex-direction: column;
         justify-content: space-between;">
       <div>
-        <p>Placeholder for pattern-rack</p>
+        <ul id="pattern-rack" style="
+          margin: 0;
+          padding: 0;
+          border: 2px solid rgb(94, 94, 114);
+          overflow-x: overlay;
+          scrollbar-gutter: stable;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: left;">
+          
+        </ul>
       </div>
       <div style="
         display: flex;
@@ -263,17 +274,24 @@
     <div style="
         width: 220px;
         margin-left: 16px;
+        margin-top: -2px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;">
-      <p class="info-paragraph" style="width: 100%;">Oscillator Selection</p>
+      <p class="info-paragraph" style="width: 100%; margin-top: -8px; margin-bottom: 0px;">Oscillator Selection</p>
       <select class="dropdown" id="osc-selection"></select>
       <div style="
+        margin-top: 0px;
+        margin-bottom: 0;
         display: flex;
         flex-direction: row;
+        align-items: center;
         justify-content: space-between;">
-        <button style="width: 100%;" id="record-pattern-button">Record Pattern</button>
+        <button style="font-size: 24px;" id="prev-pattern">⧏</button>
+        <p class="info-paragraph" style="width: 100%;" id="pattern-number-display">Pattern: 0</p>
+        <button style="font-size: 24px;" id="next-pattern">⧐</button>
       </div>
+      <button style="width: 100%; margin-top: -4px;" id="record-pattern-button">Record Pattern</button>
     </div>
   </div>
   <div class="popup-box-container" id="session-manager-popup-box" style="

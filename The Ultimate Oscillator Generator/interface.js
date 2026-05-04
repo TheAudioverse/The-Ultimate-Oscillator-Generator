@@ -281,15 +281,19 @@ setupUOSynth(0).then(async () => {
         if (isPlayingSong) setTimeout(recursivePlaySong, patternStructure[patternArray[barNumber]]?.timeStep || songSettings.timeStep);
     };
 
+    const patternRack = document.getElementById("pattern-rack");
     const playPauseBtn = document.getElementById("play-pause-button");
-    const prevBarBtn = document.getElementById("prev-pattern");
-    const nextBarBtn = document.getElementById("next-pattern");
+    const prevBarBtn = document.getElementById("prev-bar");
+    const nextBarBtn = document.getElementById("next-bar");
     const addBtn = document.getElementById("add-button");
     const insBtn = document.getElementById("ins-button");
     const delBtn = document.getElementById("del-button");
     const clrBtn = document.getElementById("clr-button");
     const cpyBtn = document.getElementById("cpy-button");
     const pasBtn = document.getElementById("pas-button");
+    const prevPatternBtn = document.getElementById("prev-pattern");
+    const nextPatternBtn = document.getElementById("next-pattern");
+    const patternNumberDisplay = document.getElementById("pattern-number-display");
     const recordPatternBtn = document.getElementById("record-pattern-button");
 
     playPauseBtn.addEventListener("pointerdown", () => {
@@ -300,36 +304,103 @@ setupUOSynth(0).then(async () => {
         barNumber--;
         if (barNumber < 0) barNumber = patternArray.length - 1;
         patternNumber = patternArray[barNumber];
+        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+        const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
+        patternRackItems.forEach(element => {
+            element.style.backgroundColor = "rgb(24, 24, 26)";
+        });
+        document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
     });
 
     nextBarBtn.addEventListener("pointerdown", () => {
         barNumber++;
         if (barNumber >= patternArray.length) barNumber = 0;
         patternNumber = patternArray[barNumber];
+        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+        const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
+        patternRackItems.forEach(element => {
+            element.style.backgroundColor = "rgb(24, 24, 26)";
+        });
+        document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
     });
 
     addBtn.addEventListener("pointerdown", () => {
-        barNumber = patternArray.push(patternNumber) - 1;
+        barNumber++;
+        patternArray.splice(barNumber, 0, patternNumber);
+        let innerHTML = '';
+        for (let i = 0; i < patternArray.length; i++) {
+            const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
+            innerHTML += `<li><div class="pattern-rack-item" data-bar-number="${i}" style="background-color: ${backgroundcolor};"><p style="margin-top: 8px; margin-bottom: 0;">${patternArray[i]}</p></div></li>`
+        }
+        patternRack.innerHTML = innerHTML;
     });
 
     insBtn.addEventListener("pointerdown", () => {
         patternArray.splice(barNumber, 0, patternNumber);
+        let innerHTML = '';
+        for (let i = 0; i < patternArray.length; i++) {
+            const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
+            innerHTML += `<li><div class="pattern-rack-item" data-bar-number="${i}" style="background-color: ${backgroundcolor};"><p style="margin-top: 8px; margin-bottom: 0;">${patternArray[i]}</p></div></li>`
+        }
+        patternRack.innerHTML = innerHTML;
     });
 
     delBtn.addEventListener("pointerdown", () => {
         patternArray.splice(barNumber, 1);
+        let innerHTML = '';
+        for (let i = 0; i < patternArray.length; i++) {
+            const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
+            innerHTML += `<li><div class="pattern-rack-item" data-bar-number="${i}" style="background-color: ${backgroundcolor};"><p style="margin-top: 8px; margin-bottom: 0;">${patternArray[i]}</p></div></li>`
+        }
+        patternRack.innerHTML = innerHTML;
     });
 
     clrBtn.addEventListener("pointerdown", () => {
-        patternStructure[patternArray[barNumber]].clear();
+        patternStructure[patternNumber].clear();
     });
 
     cpyBtn.addEventListener("pointerdown", () => {
-        patternStructure[patternArray[barNumber]].copyPattern();
+        patternStructure[patternNumber].copyPattern();
     });
 
     pasBtn.addEventListener("pointerdown", () => {
-        patternStructure[patternArray[barNumber]].pastePattern();
+        patternStructure[patternNumber].pastePattern();
+    });
+
+    prevPatternBtn.addEventListener("pointerdown", () => {
+        if (patternNumber > 0) patternNumber--;
+        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+    });
+
+    nextPatternBtn.addEventListener("pointerdown", () => {
+        patternNumber++;
+        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+    });
+
+    patternNumberDisplay.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        if (event.deltaY > 0) {
+            if (patternNumber > 0) patternNumber--;
+            patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+        } else if (event.deltaY < 0) {
+            patternNumber++;
+            patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+        }
+    });
+
+    patternRack.addEventListener("pointerdown", (event) => {
+        console.log(event.target)
+        const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
+        patternRackItems.forEach(element => {
+            element.style.backgroundColor = "rgb(24, 24, 26)";
+        });
+        let target = event.target;
+        if (target.tagName == "P") target = target.parentElement;
+        else if (target.tagName == "UL") return;
+        barNumber = target.getAttribute("data-bar-number");
+        target.style.backgroundColor = "rgb(94, 94, 114)";
+        patternNumber = patternArray[barNumber];
+        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
     });
     
     const synthParamsInputHTMLforUOSynth = [
