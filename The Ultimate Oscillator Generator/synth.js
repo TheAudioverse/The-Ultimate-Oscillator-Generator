@@ -15,16 +15,16 @@ class UOsc {
 
     oscillatorPartialFrequencies(partialIndex) {
         const baseFrequency = this._params._wavetype + (this._params._shift * partialIndex + 1) * this._params._pull ** partialIndex - 1;
-        const finalFrequency = Math.pow(baseFrequency, (-2 * Math.pow(0, Math.sign((partialIndex + 1) % this._params._partialFrequencyInverter)) + 1) ** Math.sign(this._params._partialFrequencyInverter));
+        const finalFrequency = Math.pow(baseFrequency, (-2 * (1 - Math.sign((partialIndex + 1) % this._params._partialFrequencyInverter)) + 1) ** Math.sign(this._params._partialFrequencyInverter));
 
         return finalFrequency;
     }
 
     oscillatorPartialAmplitudes(partialIndex) {
         const partialFreq = this.oscillatorPartialFrequencies(partialIndex);
-        const preCombAmp = this._params._wavetype * (this._params._damping + 0 ** Math.abs(this._params._damping)) / ((this.logAbs(Math.abs(partialFreq)) ** this._params._damping) || 1);
+        const preCombAmp = this._params._wavetype * (this._params._damping + 0 ** Math.abs(this._params._damping)) / ((this.logAbs(Math.abs(partialFreq), 1 - Math.sign((partialIndex + 1) % this._params._partialFrequencyInverter)) ** this._params._damping) || 1);
         if (!Number.isFinite(preCombAmp)) return 0;
-        const amp = preCombAmp * Math.ceil(((partialIndex + (Math.sign(this._params._partialComb) + 1) / 2) % (this._params._partialComb|| 1)) / (this._params._partialComb || 1));
+        const amp = preCombAmp * Math.ceil(((partialIndex + (Math.sign(this._params._partialComb) + 1) / 2) % (this._params._partialComb || 1)) / (this._params._partialComb || 1));
         const pwmAmp = amp * Math.PI * (2 * this._params._pwmMix * Math.sin(Math.PI * partialFreq * (this._params._pwmPhase - 180) / 360) + (1 - this._params._pwmMix)) * Math.cos(partialFreq * Math.PI * this._params._flangingPhase / 360);
         const normalization = (2 * Math.PI - Math.acos(Math.cos(Math.PI * (this._params._pwmPhase + this._params._flangingPhase) / 180 + Math.PI))) || 0;
 
@@ -49,9 +49,9 @@ class UOsc {
         else if (x > 0 && x <= 1) return (-Math.pow(-x + 1, 1 / p) + 1) ** p;
     }
 
-    logAbs(x) {
+    logAbs(x, c) {
         if (x == 0) return 0;
-        if (x >= -1 && x <= 1) return 1 / x;
+        if (x > -1 && x < 1 && c === 1) return 1 / x;
         else return x;
     }
 
@@ -179,7 +179,7 @@ class UOSynth extends AudioWorkletProcessor {
                         this.port.postMessage({ type: "Busy", subtype: "synthesizing..." });
                         this._oscStructure[this._selectedOsc].createOscillator(event.data.parameters, this._oscStructure[event.data.elseOsc]);
                         for (let voice of this._voices) {
-                            if (voice.oscName === this._selectedOsc && !this._playWavetable) {
+                            if (voice.oscName === this._selectedOsc && voice.flag == "osc") {
                                 calcVoicePartials(voice, this._oscStructure[this._selectedOsc],
                                 (440 * Math.pow(2, (3 + voice.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[this._selectedOsc]._params._wavetype,
                                 48000, { fadeStart: 20000, fadeEnd: 24000, maxPartials: 1024, relThreshold: 1e-6 });
@@ -232,30 +232,56 @@ class UOSynth extends AudioWorkletProcessor {
                         }
                     }
                     if (!already) {
-                        this._voices.push({ oscName: event.data.oscName, frequency: event.data.frequency, velocity: event.data.velocity, phase: 0, freeRunMaxVal: 1, sampleCounter: 0, removing: false });
-                        if (!this._playWavetable) {
-                            calcVoicePartials(this._voices[this._voices.length - 1], this._oscStructure[event.data.oscName], (440 * Math.pow(2, (3 + event.data.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[event.data.oscName]._params._wavetype, 48000, {
-                                fadeStart: 20000,
-                                fadeEnd: 24000,
-                                maxPartials: 1024,
-                                relThreshold: 1e-6
-                            });
-                        }
+                        this._voices.push({ oscName: event.data.oscName, frequency: event.data.frequency, velocity: event.data.velocity, phase: 0, freeRunMaxVal: 1, sampleCounter: 0, removing: false, flag: 'osc' });
+                        calcVoicePartials(this._voices[this._voices.length - 1], this._oscStructure[event.data.oscName], (440 * Math.pow(2, (3 + event.data.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[event.data.oscName]._params._wavetype, 48000, {
+                            fadeStart: 20000,
+                            fadeEnd: 24000,
+                            maxPartials: 1024,
+                            relThreshold: 1e-6
+                        });
                     }
                     break;
                 case "removeVoice":
                     for (let voice of this._voices) {
-                        if (voice.oscName === event.data.oscName && voice.frequency === event.data.frequency) {
+                        if (voice.flag === 'osc' && voice.oscName === event.data.oscName && voice.frequency === event.data.frequency) {
                             voice.removing = true;
-                            voice.sampleCounter = this._declickSampleTime - 1;
+                            voice.sampleCounter = this._declickSampleTime;
                             break;
                         }
                     }
                     break;
+                case "playSound":
+                    this._voices.push({ name: event.data.name, speed: event.data.speed, volume: 1, index: 0, sampleCounter: 0, removing: false, flag: "sound" });
+                    break;
+                case "stopSound":
+                    for (let voice of this._voices) {
+                        if (voice.flag === 'sound' && voice.name === event.data.name) {
+                            voice.removing = true;
+                            voice.sampleCounter = this._declickSampleTime;
+                            break;
+                        }
+                    }
+                    break;
+                case "recordSound":
+                    if (!this._isRecordingSound) {
+                        this._isRecordingSound = true;
+                        this._recordOscName = event.data.oscName;
+                        this._recordId = event.data.id;
+                        this._soundStructure[`${event.data.oscName}-${event.data.id}`] = [];
+                    } else {
+                        this.port.postMessage({ type: "error", message: "Already recording a sound! Stop the current recording before starting a new one." });
+                    }
+                    break;
+                case "stopRecordingSound":
+                    this.port.postMessage({ type: "recordedSound", name: `${this._recordOscName}-${this._recordId}`, data: this._soundStructure[`${this._recordOscName}-${this._recordId}`] });
+                    this._isRecordingSound = false;
+                    this._recordOscName = null;
+                    this._recordId = null;
+                    break;
                 case "changeOctave":
                     this._octave += event.data.octave;
                     for (let voice of this._voices) {
-                        if (!this._playWavetable) {
+                        if (voice.flag == "osc") {
                             calcVoicePartials(voice, this._oscStructure[voice.oscName], (440 * Math.pow(2, (3 + voice.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[voice.oscName]._params._wavetype, 48000, {
                                 fadeStart: 20000,
                                 fadeEnd: 24000,
@@ -268,7 +294,7 @@ class UOSynth extends AudioWorkletProcessor {
                 case "setOctave":
                     this._octave = event.data.octave;
                     for (let voice of this._voices) {
-                        if (!this._playWavetable) {
+                        if (voice.flag == "osc") {
                             calcVoicePartials(voice, this._oscStructure[voice.oscName], (440 * Math.pow(2, (3 + voice.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[voice.oscName]._params._wavetype, 48000, {
                                 fadeStart: 20000,
                                 fadeEnd: 24000,
@@ -281,7 +307,7 @@ class UOSynth extends AudioWorkletProcessor {
                 case "transpose":
                     this._transpose += event.data.transpose;
                     for (let voice of this._voices) {
-                        if (!this._playWavetable) {
+                        if (voice.flag == "osc") {
                             calcVoicePartials(voice, this._oscStructure[voice.oscName], (440 * Math.pow(2, (3 + voice.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[voice.oscName]._params._wavetype, 48000, {
                                 fadeStart: 20000,
                                 fadeEnd: 24000,
@@ -294,7 +320,7 @@ class UOSynth extends AudioWorkletProcessor {
                 case "setTransposition":
                     this._transpose = event.data.transpose;
                     for (let voice of this._voices) {
-                        if (!this._playWavetable) {
+                        if (voice.flag == "osc") {
                             calcVoicePartials(voice, this._oscStructure[voice.oscName], (440 * Math.pow(2, (3 + voice.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[voice.oscName]._params._wavetype, 48000, {
                                 fadeStart: 20000,
                                 fadeEnd: 24000,
@@ -331,6 +357,7 @@ class UOSynth extends AudioWorkletProcessor {
             }
         }
         this._oscStructure = {};
+        this._soundStructure = {};
         this._selectedOsc = "";
         this._voices = [];
         this._octave = 5;
@@ -340,6 +367,9 @@ class UOSynth extends AudioWorkletProcessor {
         this._isRecording = false;
         this._recordArray = [];
         this._recordingMaxAmp = 1;
+        this._isRecordingSound = false;
+        this._recordOscName = null;
+        this._recordId = null;
     }
 
     process(inputList, outputList, parameters) {
@@ -351,23 +381,45 @@ class UOSynth extends AudioWorkletProcessor {
                 for (let voice of this._voices) {
                     if (!(voice.oscName in this._oscStructure)) continue;
                     
-                    let preMixCurrentVal = 0;
-                    const partialCount = voice._partialCount;
-                    const amps = voice._amps, phX = voice._phX, phY = voice._phY, cI = voice._cosInc, sI = voice._sinInc;
-                    for (let k = 0; k < partialCount; k++) {
-                        preMixCurrentVal += amps[k] * phY[k];
-                        const x = phX[k], y = phY[k];
-                        const mag = x * x + y * y;
-                        phX[k] = (x * cI[k] - y * sI[k]);
-                        phY[k] = (x * sI[k] + y * cI[k]);
-                        if (Math.abs(1 - mag) > 1e-6) {
-                            const normFactor = 1 / Math.sqrt(mag);
-                            phX[k] *= normFactor;
-                            phY[k] *= normFactor;
-                        }
+                    switch (voice.flag) {
+                        case "osc":
+                            let preMixCurrentVal = 0;
+                            const partialCount = voice._partialCount;
+                            const amps = voice._amps, phX = voice._phX, phY = voice._phY, cI = voice._cosInc, sI = voice._sinInc;
+                            for (let k = 0; k < partialCount; k++) {
+                                preMixCurrentVal += amps[k] * phY[k];
+                                const x = phX[k], y = phY[k];
+                                const mag = x * x + y * y;
+                                phX[k] = (x * cI[k] - y * sI[k]);
+                                phY[k] = (x * sI[k] + y * cI[k]);
+                                if (Math.abs(1 - mag) > 1e-6) {
+                                    const normFactor = 1 / Math.sqrt(mag);
+                                    phX[k] *= normFactor;
+                                    phY[k] *= normFactor;
+                                }
+                            }
+                            if (Math.abs(preMixCurrentVal) > voice.freeRunMaxVal) voice.freeRunMaxVal = Math.abs(preMixCurrentVal);
+                            preMixCurrentVal = preMixCurrentVal / voice.freeRunMaxVal * voice.velocity * smooth((voice.sampleCounter + 1) / this._declickSampleTime);
+                            currentVal += preMixCurrentVal;
+                            if (this._isRecordingSound && voice.oscName == this._recordOscName) {
+                                this._soundStructure[`${this._recordOscName}-${this._recordId}`].push(preMixCurrentVal);
+                            }
+                            break;
+                        case "sound":
+                            const qIndex = Math.floor(voice.index);
+                            const nextQIndex = (qIndex + 1) % this._soundStructure[voice.name].length;
+                            const indexMod = voice.index - qIndex;
+                            const sampleVal = this._soundStructure[voice.name][qIndex] + (this._soundStructure[voice.name][nextQIndex] - this._soundStructure[voice.name][qIndex]) * indexMod;
+                            currentVal += sampleVal * voice.volume * smooth((voice.sampleCounter + 1) / this._declickSampleTime);
+                            voice.index += voice.speed;
+                            if (voice.index >= this._soundStructure[voice.name].length) {
+                                const index = this._voices.indexOf(voice);
+                                if (index > -1) {
+                                    this._voices.splice(index, 1);
+                                }
+                            }
+                            break;
                     }
-                    if (Math.abs(preMixCurrentVal) > voice.freeRunMaxVal) voice.freeRunMaxVal = Math.abs(preMixCurrentVal);
-                    currentVal += preMixCurrentVal / voice.freeRunMaxVal * voice.velocity * smooth((voice.sampleCounter + 1) / this._declickSampleTime);
 
                     if (voice.removing == false) voice.sampleCounter++;
                     else voice.sampleCounter--;
@@ -393,8 +445,6 @@ class UOSynth extends AudioWorkletProcessor {
 }
 
 registerProcessor("uo-synth", UOSynth);
-
-const lerp = (a, b, t) => a + (b - a) * t;
 
 function epsilon(x) {
     const exponent = Math.floor(Math.log2(Math.abs(x))) + 1;

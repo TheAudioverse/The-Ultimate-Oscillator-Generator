@@ -27,11 +27,18 @@ body {
     paint-order: stroke;
 }
 
+.link {
+    text-decoration: solid underline 2px;
+}
+
+.link:hover {
+    color: rgb(0, 185, 185);
+}
+
 .header {
     background-color: rgb(38, 38, 43);
     box-shadow: 0 10px 30px rgb(38, 38, 43);
     margin: 0;
-    padding-top: 5px;
     padding-bottom: 5px;
     margin-top: 0;
     margin-bottom: 8px;

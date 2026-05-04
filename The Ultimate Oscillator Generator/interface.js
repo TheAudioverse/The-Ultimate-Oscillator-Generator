@@ -46,6 +46,7 @@ volumeControl.addEventListener("input",
     false
 )
 
+let showSequencer = false;
 async function setupUOSynth(attempts) {
     if (attempts < 5) {
         try {
@@ -78,6 +79,9 @@ function toHMS(time) {
 }
 
 setupUOSynth(0).then(async () => {
+    const seqCvs = document.getElementById("sequencer-canvas");
+    const seqCtx = oscCvs.getContext("2d", { willReadFrequently: true });
+    
     let selectedOscName = '';
     let fractalSynthesis = false;
     let oscStructure = null;
@@ -88,6 +92,7 @@ setupUOSynth(0).then(async () => {
     let drawOscVisualVersion = 0;
     let visualOscDrawType = "oscilloscope";
     let visualOscScalar = 75;
+    let soundStructure = {};
 
     const e = Math.E;
     const π = Math.PI;
@@ -128,6 +133,204 @@ setupUOSynth(0).then(async () => {
 
         return outputArray;
     }
+
+    const songSettings = {
+        bpm: 120,
+        bpb: 4,
+    };
+
+    songSettings.beatLength = 60000 / songSettings.bpm;
+    songSettings.barLength = songSettings.beatLength * songSettings.bpb;
+    songSettings.timeStep = songSettings.beatLength / 24;
+
+    const patternStructure = [];
+    const patternArray = [];
+    const noteArray = [];
+    const clipboard = [];
+
+    class Pattern {
+        constructor(bpm, bpb) {
+            this._bpm = bpm;
+            this._bpb = bpb;
+            this._beatLength = 60000 / this._bpm;
+            this._barLength = 24 * this._bpb;
+            this._timeStep = this._beatLength / 24;
+            this._noteArray = [].fill([], 0, this._barLength);
+        }
+
+        newNote(pitch, startTime, duration, type, name) {
+            if (startTime >= this._barLength) {
+                console.error("Note start time is out of bounds");
+                return;
+            }
+            this._noteArray[startTime].push(new Note(pitch, duration, 100, type, name));
+        }
+
+        clear() {
+            this._noteArray = [].fill([], 0, this._barLength);
+        }
+
+        copyPattern() {
+            clipboard.unshift(this._noteArray);
+            while (clipboard.length > 5) {
+                clipboard.pop(clipboard.length - 1);
+            }
+        }
+
+        pastePattern() {
+            for (let i = 0; i < 5; i++) {
+                if (clipboard[i].length == this._barLength) {
+                    this._noteArray = clipboard[i];
+                    break;
+                }
+            }
+        }
+
+        set setBPM(bpm) {
+            this._bpm = bpm;
+            this._beatLength = 60000 / this._bpm;
+            this._timeStep = this._beatLength / 24;
+        }
+
+        set setBPB(bpb) {
+            const oldBarLength = this._barLength;
+            this._bpb = bpb;
+            this._barLength = 24 * this._bpb;
+            const oldToNewRatio = this._barLength / oldBarLength;
+
+            const newNoteArray = [].fill([], 0, this._barLength);
+            for (let i = 0; i < this._noteArray.length; i++) {
+                const slot = this._noteArray[i];
+                for (let index = 0; i < slot.length; i++) {
+                    const currentNote = slot[index];
+                    this.newNote(currentNote._pitch, Math.round(i * oldToNewRatio), currentNote._duration, currentNote._type, currentNote._name);
+                    slot.splice(index, 1);
+                }
+            }
+
+            this._noteArray = newNoteArray;
+        }
+    }
+
+    class Note {
+        constructor(pitch, duration, velocity, type, name) {
+            this._pitch = pitch;
+            this._duration = duration;
+            this._velocity = velocity;
+            this._type = type;
+            this._name = name;
+        }
+    }
+    
+    let isPlayingSong = false;
+    let songTime = 0;
+    let barNumber = 0;
+    let patternNumber = 0;
+    let beatNumber = 1;
+    let singleBarMode = false;
+    let loop = false;
+    let repeatRange = [0, 0];
+
+    const playPauseSong = () => {
+        if (isPlayingSong) {
+            isPlayingSong = false;
+            songTime = 0;
+        } else {
+            isPlayingSong = true;
+            recursivePlaySong();
+        }
+    }
+
+    const playSong = () => {
+        if (isPlayingSong && patternArray.length > 0) {
+            const currentNotes = patternStructure[patternArray[barNumber]]._noteArray[songTime];
+            for (let index = 0; index < currentNotes.length; index++) {
+                const currentNote = currentNotes[index];
+                switch (currentNote._type) {
+                    case "osc":
+                        messageFunctions.addVoice(currentNote._name, currentNote._pitch, currentNote._velocity);
+                        noteArray.push({ name: currentNote._name, freq: currentNote._pitch, lifetime: currentNote._duration + 1 });
+                        break;
+                    case "sound":
+                        soundStructure[currentNote._name]();
+                        break;
+                }
+            }
+            for (let index = 0; index < noteArray.length; index++) {
+                const currentNote = noteArray[index];
+                currentNote.lifetime--;
+                if (currentNote.lifetime <= 0) {
+                    messageFunctions.removeVoice(currentNote.name, currentNote.freq);
+                }
+            }
+            songTime += 1;
+
+            if (songTime >= patternStructure[patternArray[barNumber]]._barLength) {
+                barNumber += singleBarMode ? 0 : 1;
+                patternNumber = patternArray[barNumber];
+                songTime = 0;
+            }
+            beatNumber = Math.floor(songTime / 24) + 1;
+            if (loop && !singleBarMode && barNumber > repeatRange[1]) barNumber = repeatRange[0];
+        }
+    };
+
+    const recursivePlaySong = () => {
+        playSong();
+
+        if (isPlayingSong) setTimeout(recursivePlaySong, patternStructure[patternArray[barNumber]]?.timeStep || songSettings.timeStep);
+    };
+
+    const playPauseBtn = document.getElementById("play-pause-button");
+    const prevBarBtn = document.getElementById("prev-pattern");
+    const nextBarBtn = document.getElementById("next-pattern");
+    const addBtn = document.getElementById("add-button");
+    const insBtn = document.getElementById("ins-button");
+    const delBtn = document.getElementById("del-button");
+    const clrBtn = document.getElementById("clr-button");
+    const cpyBtn = document.getElementById("cpy-button");
+    const pasBtn = document.getElementById("pas-button");
+    const recordPatternBtn = document.getElementById("record-pattern-button");
+
+    playPauseBtn.addEventListener("pointerdown", () => {
+        playPauseSong();
+    });
+
+    prevBarBtn.addEventListener("pointerdown", () => {
+        barNumber--;
+        if (barNumber < 0) barNumber = patternArray.length - 1;
+        patternNumber = patternArray[barNumber];
+    });
+
+    nextBarBtn.addEventListener("pointerdown", () => {
+        barNumber++;
+        if (barNumber >= patternArray.length) barNumber = 0;
+        patternNumber = patternArray[barNumber];
+    });
+
+    addBtn.addEventListener("pointerdown", () => {
+        barNumber = patternArray.push(patternNumber) - 1;
+    });
+
+    insBtn.addEventListener("pointerdown", () => {
+        patternArray.splice(barNumber, 0, patternNumber);
+    });
+
+    delBtn.addEventListener("pointerdown", () => {
+        patternArray.splice(barNumber, 1);
+    });
+
+    clrBtn.addEventListener("pointerdown", () => {
+        patternStructure[patternArray[barNumber]].clear();
+    });
+
+    cpyBtn.addEventListener("pointerdown", () => {
+        patternStructure[patternArray[barNumber]].copyPattern();
+    });
+
+    pasBtn.addEventListener("pointerdown", () => {
+        patternStructure[patternArray[barNumber]].pastePattern();
+    });
     
     const synthParamsInputHTMLforUOSynth = [
         document.getElementsByName(`synth-param-'amp'`)[0],
@@ -206,14 +409,6 @@ setupUOSynth(0).then(async () => {
                 break;
             case "givenOscillator":
                 const oscillator = event.data.oscillator;
-                let oscillatorPhazorInfo = undefined;
-                oscillatorPhazorInfo = calcOscillatorPartials({
-                    frequencies: oscillator._oscillatorPartialFreqs, 
-                    amplitudes: oscillator._oscillatorPartialAmps, 
-                    phases: oscillator._oscillatorPartialPhases
-                }, visualSampleCount, {
-                    maxPartials: oscillator._params._partialCount
-                });
                 if (oscillator._oscillatorSamples) {
                     oscillatorSamplesArray = oscillator._oscillatorSamples;
                     oscillatorMaxAmp = oscillator._oscillatorMaxAmp;
@@ -227,118 +422,34 @@ setupUOSynth(0).then(async () => {
                     }), oscillatorPeriod: Number.isNaN(oscillator._oscillatorPeriod) ? 48000 : oscillator._oscillatorPeriod });
                     document.getElementById("export-wav-button").style.cursor = 'wait';
                 }
+                if (!showSequencer) {
+                    let oscillatorPhazorInfo = undefined;
+                    oscillatorPhazorInfo = calcOscillatorPartials({
+                        frequencies: oscillator._oscillatorPartialFreqs, 
+                        amplitudes: oscillator._oscillatorPartialAmps, 
+                        phases: oscillator._oscillatorPartialPhases
+                    }, visualSampleCount, {
+                        maxPartials: oscillator._params._partialCount
+                    });
 
-                drawOscVisualVersion++;
-                cancelAnimationFrame(visualOscRAF);
-                visualOscRAF = undefined;
+                    drawOscVisualVersion++;
+                    cancelAnimationFrame(visualOscRAF);
+                    visualOscRAF = undefined;
 
-                oscCtx.fillStyle = "rgb(24, 24, 26)";
-                oscCtx.fillRect(0, 0, oscCvs.width, oscCvs.height);
-                oscCtx.strokeStyle = "rgb(0, 185, 185)";
-                oscCtx.lineWidth = 1;
-                
-                const N = oscillatorPhazorInfo.partialCount;
-
-                let freeRunMaxVal = 1;
-                let sineFreeRunMaxVal = 1;
-                const initPhX = oscillatorPhazorInfo.phX.map(v => v);
-                const initPhY = oscillatorPhazorInfo.phY.map(v => v);
-                for (let i = 0; i < visualSampleCount; i++) {
-                    let currentVal = 0;
-                    const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
-                    for (let k = 0; k < N; k++) {
-                        currentVal += amps[k] * phY[k];
-                        const xP = phX[k], yP = phY[k];
-                        const mag = xP * xP + yP * yP;
-                        phX[k] = (xP * cI[k] - yP * sI[k]);
-                        phY[k] = (xP * sI[k] + yP * cI[k]);
-                        if (Math.abs(1 - mag) > 1e-6) {
-                            const normFactor = 1 / Math.sqrt(mag);
-                            phX[k] *= normFactor;
-                            phY[k] *= normFactor;
-                        }
-                        if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
-                    }
-                    if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
-                }
-                oscillatorPhazorInfo.phX = initPhX;
-                oscillatorPhazorInfo.phY = initPhY;
-
-                let x;
-                let y;
-                let yArray = [];
-                let prevX = 0;
-                let prevY = oscCvs.height / 2;
-                let prevYArray = [];
-                prevYArray.fill(oscCvs.height / 2, 0, N - 1);
-                for (let i = 0; i < visualSampleCount; i++) {
-                    let currentVal = 0;
-                    x = (i / visualSampleCount * oscCvs.width);
-                    const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
-                    if (visualOscDrawType == "oscilloscope") {
-                        for (let k = 0; k < N; k++) {
-                            currentVal += amps[k] * phY[k];
-                            const xP = phX[k], yP = phY[k];
-                            const mag = xP * xP + yP * yP;
-                            phX[k] = (xP * cI[k] - yP * sI[k]);
-                            phY[k] = (xP * sI[k] + yP * cI[k]);
-                            if (Math.abs(1 - mag) > 1e-6) {
-                                const normFactor = 1 / Math.sqrt(mag);
-                                phX[k] *= normFactor;
-                                phY[k] *= normFactor;
-                            }
-                        }
-                        if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
-
-                        y = clamp(currentVal / freeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
-                        oscCtx.beginPath();
-                        oscCtx.moveTo(prevX, prevY);
-                        oscCtx.lineTo(x, y);
-                        oscCtx.stroke();
-
-                        prevY = y;
-                    } else if (visualOscDrawType == "fourierOscilloscope") {
-                        for (let k = 0; k < N; k++) {
-                            currentVal = amps[k] / amps[0] * phY[k];
-                            const xP = phX[k], yP = phY[k];
-                            const mag = xP * xP + yP * yP;
-                            phX[k] = (xP * cI[k] - yP * sI[k]);
-                            phY[k] = (xP * sI[k] + yP * cI[k]);
-                            if (Math.abs(1 - mag) > 1e-6) {
-                                const normFactor = 1 / Math.sqrt(mag);
-                                phX[k] *= normFactor;
-                                phY[k] *= normFactor;
-                            }
-                            if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
-
-                            yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
-                            oscCtx.beginPath();
-                            oscCtx.moveTo(prevX, prevYArray[k]);
-                            oscCtx.lineTo(x, yArray[k]);
-                            oscCtx.stroke();
-                        }
-
-                        prevYArray = yArray.map(v => v);
-                    }
-
-                    prevX = x;
-                };
-
-                const currentVersion = drawOscVisualVersion;
-                const drawOscVisual = () => {
-                    if (currentVersion != drawOscVisualVersion) return;
-                    visualOscRAF = requestAnimationFrame(drawOscVisual);
+                    oscCtx.fillStyle = "rgb(24, 24, 26)";
+                    oscCtx.fillRect(0, 0, oscCvs.width, oscCvs.height);
+                    oscCtx.strokeStyle = "rgb(0, 185, 185)";
+                    oscCtx.lineWidth = 1;
                     
-                    if (visualOscDrawType != "paused") {
-                        const img = oscCtx.getImageData(1, 0, oscCvs.width - 1, oscCvs.height);
-                        oscCtx.putImageData(img, 0, 0);
-                        oscCtx.clearRect(oscCvs.width - 1, 0, 1, oscCvs.height);
-                    }
-
-                    let currentVal = 0;
                     const N = oscillatorPhazorInfo.partialCount;
-                    const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
-                    if (visualOscDrawType == "oscilloscope") {
+
+                    let freeRunMaxVal = 1;
+                    let sineFreeRunMaxVal = 1;
+                    const initPhX = oscillatorPhazorInfo.phX.map(v => v);
+                    const initPhY = oscillatorPhazorInfo.phY.map(v => v);
+                    for (let i = 0; i < visualSampleCount; i++) {
+                        let currentVal = 0;
+                        const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
                         for (let k = 0; k < N; k++) {
                             currentVal += amps[k] * phY[k];
                             const xP = phX[k], yP = phY[k];
@@ -350,49 +461,146 @@ setupUOSynth(0).then(async () => {
                                 phX[k] *= normFactor;
                                 phY[k] *= normFactor;
                             }
+                            if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
                         }
                         if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
+                    }
+                    oscillatorPhazorInfo.phX = initPhX;
+                    oscillatorPhazorInfo.phY = initPhY;
 
-                        const yVal = clamp(currentVal / freeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
-                        oscCtx.beginPath();
-                        oscCtx.moveTo(oscCvs.width - 2, prevY);
-                        oscCtx.lineTo(oscCvs.width - 1, yVal);
-                        oscCtx.stroke();
-
-                        prevY = yVal;
-                    } else if (visualOscDrawType == "fourierOscilloscope") {
-                        for (let k = 0; k < N; k++) {
-                            currentVal = amps[k] * phY[k];
-                            const xP = phX[k], yP = phY[k];
-                            const mag = xP * xP + yP * yP;
-                            phX[k] = (xP * cI[k] - yP * sI[k]);
-                            phY[k] = (xP * sI[k] + yP * cI[k]);
-                            if (Math.abs(1 - mag) > 1e-6) {
-                                const normFactor = 1 / Math.sqrt(mag);
-                                phX[k] *= normFactor;
-                                phY[k] *= normFactor;
+                    let x;
+                    let y;
+                    let yArray = [];
+                    let prevX = 0;
+                    let prevY = oscCvs.height / 2;
+                    let prevYArray = [];
+                    prevYArray.fill(oscCvs.height / 2, 0, N - 1);
+                    for (let i = 0; i < visualSampleCount; i++) {
+                        let currentVal = 0;
+                        x = (i / visualSampleCount * oscCvs.width);
+                        const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
+                        if (visualOscDrawType == "oscilloscope") {
+                            for (let k = 0; k < N; k++) {
+                                currentVal += amps[k] * phY[k];
+                                const xP = phX[k], yP = phY[k];
+                                const mag = xP * xP + yP * yP;
+                                phX[k] = (xP * cI[k] - yP * sI[k]);
+                                phY[k] = (xP * sI[k] + yP * cI[k]);
+                                if (Math.abs(1 - mag) > 1e-6) {
+                                    const normFactor = 1 / Math.sqrt(mag);
+                                    phX[k] *= normFactor;
+                                    phY[k] *= normFactor;
+                                }
                             }
-                            if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
+                            if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
 
-                            yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                            y = clamp(currentVal / freeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
                             oscCtx.beginPath();
-                            oscCtx.moveTo(oscCvs.width - 2, prevYArray[k]);
-                            oscCtx.lineTo(oscCvs.width - 1, yArray[k]);
+                            oscCtx.moveTo(prevX, prevY);
+                            oscCtx.lineTo(x, y);
                             oscCtx.stroke();
+
+                            prevY = y;
+                        } else if (visualOscDrawType == "fourierOscilloscope") {
+                            for (let k = 0; k < N; k++) {
+                                currentVal = amps[k] / amps[0] * phY[k];
+                                const xP = phX[k], yP = phY[k];
+                                const mag = xP * xP + yP * yP;
+                                phX[k] = (xP * cI[k] - yP * sI[k]);
+                                phY[k] = (xP * sI[k] + yP * cI[k]);
+                                if (Math.abs(1 - mag) > 1e-6) {
+                                    const normFactor = 1 / Math.sqrt(mag);
+                                    phX[k] *= normFactor;
+                                    phY[k] *= normFactor;
+                                }
+                                if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
+
+                                yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                                oscCtx.beginPath();
+                                oscCtx.moveTo(prevX, prevYArray[k]);
+                                oscCtx.lineTo(x, yArray[k]);
+                                oscCtx.stroke();
+                            }
+
+                            prevYArray = yArray.map(v => v);
                         }
 
-                        prevYArray = yArray.map(v => v);
+                        prevX = x;
+                    };
+
+                    const currentVersion = drawOscVisualVersion;
+                    const drawOscVisual = () => {
+                        if (currentVersion != drawOscVisualVersion) return;
+                        visualOscRAF = requestAnimationFrame(drawOscVisual);
+                        
+                        if (visualOscDrawType != "paused") {
+                            const img = oscCtx.getImageData(1, 0, oscCvs.width - 1, oscCvs.height);
+                            oscCtx.putImageData(img, 0, 0);
+                            oscCtx.clearRect(oscCvs.width - 1, 0, 1, oscCvs.height);
+                        }
+
+                        let currentVal = 0;
+                        const N = oscillatorPhazorInfo.partialCount;
+                        const amps = oscillatorPhazorInfo.amps, phX = oscillatorPhazorInfo.phX, phY = oscillatorPhazorInfo.phY, cI = oscillatorPhazorInfo.cosInc, sI = oscillatorPhazorInfo.sinInc;
+                        if (visualOscDrawType == "oscilloscope") {
+                            for (let k = 0; k < N; k++) {
+                                currentVal += amps[k] * phY[k];
+                                const xP = phX[k], yP = phY[k];
+                                const mag = xP * xP + yP * yP;
+                                phX[k] = (xP * cI[k] - yP * sI[k]);
+                                phY[k] = (xP * sI[k] + yP * cI[k]);
+                                if (Math.abs(1 - mag) > 1e-6) {
+                                    const normFactor = 1 / Math.sqrt(mag);
+                                    phX[k] *= normFactor;
+                                    phY[k] *= normFactor;
+                                }
+                            }
+                            if (Math.abs(currentVal) > freeRunMaxVal) freeRunMaxVal = Math.abs(currentVal);
+
+                            const yVal = clamp(currentVal / freeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                            oscCtx.beginPath();
+                            oscCtx.moveTo(oscCvs.width - 2, prevY);
+                            oscCtx.lineTo(oscCvs.width - 1, yVal);
+                            oscCtx.stroke();
+
+                            prevY = yVal;
+                        } else if (visualOscDrawType == "fourierOscilloscope") {
+                            for (let k = 0; k < N; k++) {
+                                currentVal = amps[k] * phY[k];
+                                const xP = phX[k], yP = phY[k];
+                                const mag = xP * xP + yP * yP;
+                                phX[k] = (xP * cI[k] - yP * sI[k]);
+                                phY[k] = (xP * sI[k] + yP * cI[k]);
+                                if (Math.abs(1 - mag) > 1e-6) {
+                                    const normFactor = 1 / Math.sqrt(mag);
+                                    phX[k] *= normFactor;
+                                    phY[k] *= normFactor;
+                                }
+                                if (Math.abs(currentVal) > sineFreeRunMaxVal) sineFreeRunMaxVal = Math.abs(currentVal);
+
+                                yArray[k] = clamp(currentVal / sineFreeRunMaxVal * -visualOscScalar + oscCvs.height / 2, 0, oscCvs.height - 1);
+                                oscCtx.beginPath();
+                                oscCtx.moveTo(oscCvs.width - 2, prevYArray[k]);
+                                oscCtx.lineTo(oscCvs.width - 1, yArray[k]);
+                                oscCtx.stroke();
+                            }
+
+                            prevYArray = yArray.map(v => v);
+                        }
                     }
+
+                    await wait(2000);
+
+                    drawOscVisual();
                 }
-
-                await wait(2000);
-
-                drawOscVisual();
                 break;
             case "recordedAudio":
                 const recordedAudio = event.data.data;
                 const maxAmp = event.data.maxAmp || 1;
                 downloadWAV(recordedAudio, maxAmp, "recording");
+                break;
+            case "recordedSound":
+                soundStructure[event.data.name] = () => { return messageFunctions.playsound(event.data.name, 1) };
                 break;
         }
     };
@@ -417,7 +625,7 @@ setupUOSynth(0).then(async () => {
             case 'givenWavetable':
                 oscillatorSamplesArray = event.data.wavetable.map(v => v);
                 oscillatorMaxAmp = event.data.maxAmp || 1;
-                uoSynthNode.port.postMessage({ type: 'givenWavetable', oscName: event.data.oscName, wavetable: event.data.wavetable, maxAmp: oscillatorMaxAmp }, [event.data.wavetable.buffer]);
+                uoSynthNode.port.postMessage({ type: 'givenWavetable', oscName: event.data.oscName, wavetable: event.data.wavetable, maxAmp: event.data.maxAmp }, [event.data.wavetable.buffer]);
                 document.getElementById("export-wav-button").innerHTML = `Export .wav`;
                 document.getElementById("export-wav-button").style.cursor = 'pointer';
                 break;
@@ -498,6 +706,31 @@ setupUOSynth(0).then(async () => {
                 frequency: frequency
             });
         },
+        playsound: (name, speed) => {
+            uoSynthNode.port.postMessage({
+                type: "playsound",
+                name: name,
+                speed: speed
+            });
+        },
+        stopSound: (name) => {
+            uoSynthNode.port.postMessage({
+                type: "stopSound",
+                name: name
+            });
+        },
+        recordSound: (oscName, id) => {
+            uoSynthNode.port.postMessage({
+                type: "recordSound",
+                oscName: oscName,
+                id: id
+            });
+        },
+        stopRecordingSound: () => {
+            uoSynthNode.port.postMessage({
+                type: "stopRecordingSound"
+            });
+        },
         changeOctave: (newOctave) => {
             uoSynthNode.port.postMessage({
                 type: "changeOctave",
@@ -543,6 +776,7 @@ setupUOSynth(0).then(async () => {
         if (fractalSynthesis) {
             const argTextBox = document.getElementsByClassName('fractalize-arg-text-box')[0];
             messageFunctions.synthesize(argTextBox.value);
+            document.getElementById("export-wav-button").innerHTML = `${0}%`;
 
             const fractalize = document.createElement('button');
             fractalize.id = 'save-preset-btn-2';
@@ -557,6 +791,7 @@ setupUOSynth(0).then(async () => {
             return;
         } else {
             try { uoSynthNode.port.removeEventListener('message', synthesisMessageHandler, { once: true }); } catch (e) {}
+            document.getElementById("export-wav-button").innerHTML = `${0}%`;
             return messageFunctions.synthesize(null);
         }
     };
@@ -677,6 +912,7 @@ setupUOSynth(0).then(async () => {
         console.error(`Failed to get MIDI access - ${msg}`);
     }
 
+    /*
     let pointerPitch;
 
     document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointerdown', (event) => {
@@ -695,6 +931,7 @@ setupUOSynth(0).then(async () => {
     document.getElementsByClassName('keyboard-buttons-container')[0].addEventListener('pointerexit', () => {
         setVoice("remove", pointerPitch);
     });
+    */
 
     document.addEventListener('keydown', (event) => {
         if (event.repeat || document.activeElement.tagName == 'INPUT' && document.activeElement.type == 'text') return;
@@ -831,8 +1068,30 @@ setupUOSynth(0).then(async () => {
             case "ArrowRight":
                 messageFunctions.transpose(1);
                 break;
-            case "Enter":
-                document.getElementById("save-preset-btn").click();
+            case "S":
+                if (showSequencer) {
+                    showSequencer = false;
+                    document.getElementsByClassName("main")[0].style.display = "flex";
+                    document.getElementsByClassName("sequencer")[0].style.display = "none";
+                } else {
+                    showSequencer = true;
+                    document.getElementsByClassName("main")[0].style.display = "none";
+                    document.getElementsByClassName("sequencer")[0].style.display = "flex";
+                    const oscSelection = document.getElementById("osc-selection");
+
+                    uoSynthNode.port.addEventListener('message', (event) => {
+                        if (event.data.type == "givenOscStructure") {
+                            oscStructure = event.data.data;
+                            let innerHTML = '';
+                            Object.keys(oscStructure).forEach((_key) => {
+                                innerHTML += `<option value="${_key}">${_key}</option>
+                                `;
+                            });
+                            oscSelection.innerHTML = innerHTML;
+                        }
+                    }, { once: true });
+                    uoSynthNode.port.postMessage({ type: 'getOscStructure' });
+                }
                 break;
         };
     });
@@ -1062,6 +1321,7 @@ setupUOSynth(0).then(async () => {
         isRecording = true;
         const recordBtn = document.getElementById('record-wav-button');
         let recordingTime = 0;
+        recordBtn.innerText = `${toHMS(0)}`;
         const incrementTimePromise = async () => {
             while (isRecording) {
                 await wait(1000);
@@ -1240,6 +1500,8 @@ setupUOSynth(0).then(async () => {
                         promptText.innerText = 'Lorem ipsum ..';
                         promptDiv.innerHTML = '';
                         manualDiv.style.display = 'none';
+                        drawOscVisualVersion++
+                        oscCtx.clearRect(0, 0, oscCvs.width, oscCvs.height);
                         
                         document.getElementsByName('synth-name-input')[0].value = '';
                         synthParamsInputHTMLforUOSynth[1].value = '';
@@ -1265,6 +1527,21 @@ setupUOSynth(0).then(async () => {
         uoSynthNode.port.addEventListener('message', onMsg);
         uoSynthNode.port.postMessage({ type: 'getOscStructure' });
     });
+
+    document.getElementById("uosc-link").addEventListener('pointerdown', () => {
+        showSequencer = false;
+        document.getElementsByClassName("main")[0].style.display = "flex";
+        document.getElementsByClassName("sequencer")[0].style.display = "none";
+    });
+
+    function resizeCanvas() {
+        seqCvs.width = 0.56 * window.innerWidth - 4;
+        seqCvs.height = 0.75 * window.innerHeight;
+    }
+
+    resizeCanvas();
+
+    window.addEventListener('resize', resizeCanvas);
 }, () => {
     alert("Server side error: Audio context initialization failed. Check if the audio permission is given to this page and reload the page. If that doesn't work check your connection and reload the page.");
 });
@@ -1358,7 +1635,6 @@ function calcOscillatorPartials(osc, sampleRate, opts = {}) {
 // Visualization section. //
 // ---------------------- //
 
-let customWaveform = synthCtx.createPeriodicWave([0, 0], [0, 0]);
 const oscCvs = document.getElementById("occiloscope-canvas");
 const oscCtx = oscCvs.getContext("2d", { willReadFrequently: true });
 oscCtx.imageSmoothingEnabled = false;
@@ -1381,11 +1657,6 @@ const dataArray = new Uint8Array(bufferLength);
 const pcmData = new Float32Array(oscAnalyser.fftSize);
 
 let visualSelect = "oscilloscope";
-
-document.getElementById("visualization-select").addEventListener("change", (event) => {
-    visualSelect = event.target.value;
-    visualizerSelecter();
-});
 
 const drawOsc = () => {
     if (visualSelect === "oscilloscope") requestAnimationFrame(drawOsc);
@@ -1533,7 +1804,12 @@ function visualizerSelecter() {
         drawSpect();
     }
 }
-visualizerSelecter();
+if (!showSequencer) visualizerSelecter();
+
+document.getElementById("visualization-select").addEventListener("change", (event) => {
+    visualSelect = event.target.value;
+    if (!showSequencer) visualizerSelecter();
+});
 
 // ------------------------------- //
 // General event listener section. //
