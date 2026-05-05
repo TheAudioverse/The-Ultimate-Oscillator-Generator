@@ -64,6 +64,8 @@ ul {
 div {
     margin-top: 4px;
     margin-bottom: 4px;
+    line-height: 0;
+    gap: 0;
 }
 
 .synth-section {
@@ -130,12 +132,14 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-runnable-track {
     background-color: rgb(43, 43, 46);
+    border: solid 1px rgb(0, 185, 185);
     height: 8px;
     border-radius: 4px;
 }
 
 input[type="range"]::-moz-range-track {
     background-color: rgb(43, 43, 46);
+    border: solid 1px rgb(0, 185, 185);
     height: 8px;
     border-radius: 4px;
 }
@@ -145,11 +149,11 @@ input[type="range"]::-webkit-slider-thumb {
     appearance: none;
     width: 20px;
     height: 20px;
+    margin-top: -7px;
     background: rgb(0, 185, 185);
     box-shadow: 0 0 5px 3px rgba(0, 185, 185 ,0.5);
     border-radius: 50%;
     cursor: pointer;
-    margin-top: -6px;
 }
 
 input[type="range"]::-moz-range-thumb {

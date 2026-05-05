@@ -206,92 +206,179 @@
     align-content: stretch;
     justify-content: flex-start;
     align-items: stretch;">
-    <div>
-      <canvas id="sequencer-canvas" width="720" height="0" style="border: 2px solid rgb(0, 185, 185); margin-bottom: 8px;"></canvas>
-    </div>
-
     <div style="
-    width: 44%">
-      <div class="header">
-        <h1 class="title" style="height: 9px; margin-top: -17.420px; padding-top: 36px;">The Ultimate Oscillator Sequencer</h1>
-      </div>
-      <p class="info-paragraph" style="width: 400px;">
-        This program is designed to sequence sounds made by <span id="uosc-link" class="link" style="text-decoration: solid underline 2px;">The Ultimate Oscillator Generator</span>. Click the button below to access the manual.
-      </p>
-      <div class="manual-button-container" style="
-        display: flex;
-        justify-content: center;">
-        <button id="the-manual-button">The Manual</button>
-      </div>
-    </div>
-    <div style="
-      width: 96px;
-      margin-left: 8px;
-      margin-top: 0;
+      width: 100%;
+      height: calc(78.125% + 2px);
+      margin: 0; 
+      padding: 0;
       display: flex;
-      flex-direction: column;">
-      <button style="font-size: 36px;" id="play-pause-button">►</button>
+      flex-direction: row;
+      flex-wrap: nowrap;">
       <div style="
+        width: 56%;
+        border-right: 2px solid rgb(94, 94, 114);
+        border-bottom: 2px solid rgb(94, 94, 114);
+        margin: 0;
+        padding: 0;
+        font-size: 0;
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
+        flex-wrap: nowrap;">
+        <div style="
+          margin: 0;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: nowrap;">
+          <canvas id="sequencer-canvas" width="720" height="0" style="border: 2px solid rgb(0, 185, 185); margin: 0px;"></canvas>
+          <div style="
+            width: 24px; 
+            margin: 0; 
+            background-color: rgb(38, 38, 43);
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            justify-content: space-evenly;">
+            <input type="range" min="0" max="10" value="5" id="octave-scrollbar" style="width: 12px; height: 384px; margin: 0; writing-mode: vertical-lr; direction: rtl;">
+          </div>
+        </div>
+        <div style="
+          width: 100%; 
+          margin: 0; 
+          background-color: rgb(43, 43, 46);
+          display: flex;
+          flex-direction: row;
+          flex-wrap: nowrap;
+          justify-content: space-evenly;
+          align-items: center;">
+          <select class="dropdown" id="grid-space-select" style="width: 128px; margin-top: 4px; margin-bottom: 4px;">
+            <option value="3">÷3 </option>
+            <option value="4">÷4 </option>
+            <option value="6">÷6 </option>
+            <option value="8">÷8 </option>
+            <option value="12">÷12 </option>
+            <option value="24">÷24 </option>
+          </select>
+          <div style="
+            width: 192px;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: space-evenly;
+            align-items: center;">
+            <button id="zoom-out">🔍︎</button>
+            <p style="margin: 0;">3 Octaves</p>
+            <button id="zoom-in">🔎︎</button>
+          </div>
+          <button style="width: 128px;">Pattern Settings</button>
+        </div>
+      </div>
+      <div style="
+        width: 44%;
+        margin-top: 0;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
         justify-content: space-between;">
-        <button style="font-size: 36px;" id="prev-bar">⧏</button>
-        <button style="font-size: 36px;" id="next-bar">⧐</button>
+        <div style="margin: 0;">
+          <div class="header">
+            <h1 class="title" style="height: 9px; margin-top: -17.420px; padding-top: 36px;">The Ultimate Oscillator Sequencer</h1>
+          </div>
+          <p class="info-paragraph" style="width: 400px;">
+            This program is designed to sequence sounds made by <span id="uosc-link" class="link">The Ultimate Oscillator Generator</span>. Click the button below to access the manual.
+          </p>
+          <div class="manual-button-container" style="
+            display: flex;
+            justify-content: center;">
+            <button id="the-manual-button">The Manual</button>
+          </div>
+        </div>
+        <div style="
+          margin: 0;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          align-items: flex-end;">
+          <p style="margin-left: 8px; margin-right: 8px; margin-bottom: 0;" id="song-time-display">1:1:00</p>
+          <button style="margin-right: 8px; margin-bottom: 0;">Metronome</button>
+        </div>
       </div>
     </div>
     <div style="
-        width: 360px;
-        margin-left: 16px;
+      margin: 0;
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;">
+      <div style="
+        width: 96px;
+        margin-left: 8px;
+        margin-top: 0;
         display: flex;
         flex-direction: column;
         justify-content: space-between;">
-      <div>
-        <ul id="pattern-rack" style="
-          margin: 0;
-          padding: 0;
-          border: 2px solid rgb(94, 94, 114);
-          overflow-x: overlay;
-          scrollbar-gutter: stable;
+        <button style="font-size: 36px; max-height: 48px;" id="play-pause-button">►</button>
+        <div style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;">
+          <button style="font-size: 36px;" id="prev-bar">⧏</button>
+          <button style="font-size: 36px;" id="next-bar">⧐</button>
+        </div>
+      </div>
+      <div style="
+          width: 360px;
+          margin-left: 16px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;">
+        <div>
+          <ul id="pattern-rack" style="
+            margin: 0;
+            padding: 0;
+            border: 2px solid rgb(94, 94, 114);
+            overflow-x: overlay;
+            scrollbar-gutter: stable;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: left;">
+            
+          </ul>
+        </div>
+        <div style="
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;">
+          <button style="font-size: 24px;" id="add-button">Add</button>
+          <button style="font-size: 24px;" id="ins-button">Ins</button>
+          <button style="font-size: 24px;" id="del-button">Del</button>
+          <button style="font-size: 24px;" id="clr-button">Clr</button>
+          <button style="font-size: 24px;" id="cpy-button">Cpy</button>
+          <button style="font-size: 24px;" id="pas-button">Pas</button>
+        </div>
+      </div>
+      <div style="
+          width: 220px;
+          margin-left: 16px;
+          margin-top: -2px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;">
+        <p class="info-paragraph" style="width: 100%; margin-bottom: 0px;">Oscillator Selection</p>
+        <select class="dropdown" id="osc-selection"></select>
+        <div style="
+          margin-top: 0px;
+          margin-bottom: 0;
           display: flex;
           flex-direction: row;
           align-items: center;
-          justify-content: left;">
-          
-        </ul>
+          justify-content: space-between;">
+          <button style="font-size: 24px; margin: 0; height: 24px; line-height: 0;" id="prev-pattern">⧏</button>
+          <p class="info-paragraph" style="width: 100%; margin: 0;" id="pattern-number-display">Pattern: 0</p>
+          <button style="font-size: 24px; margin: 0; height: 24px; line-height: 0;" id="next-pattern">⧐</button>
+        </div>
+        <button style="width: 100%; margin-top: -8px;" id="record-pattern-button">Record Pattern</button>
       </div>
-      <div style="
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;">
-        <button style="font-size: 24px;" id="add-button">Add</button>
-        <button style="font-size: 24px;" id="ins-button">Ins</button>
-        <button style="font-size: 24px;" id="del-button">Del</button>
-        <button style="font-size: 24px;" id="clr-button">Clr</button>
-        <button style="font-size: 24px;" id="cpy-button">Cpy</button>
-        <button style="font-size: 24px;" id="pas-button">Pas</button>
-      </div>
-    </div>
-    <div style="
-        width: 220px;
-        margin-left: 16px;
-        margin-top: -2px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;">
-      <p class="info-paragraph" style="width: 100%; margin-top: -8px; margin-bottom: 0px;">Oscillator Selection</p>
-      <select class="dropdown" id="osc-selection"></select>
-      <div style="
-        margin-top: 0px;
-        margin-bottom: 0;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;">
-        <button style="font-size: 24px;" id="prev-pattern">⧏</button>
-        <p class="info-paragraph" style="width: 100%;" id="pattern-number-display">Pattern: 0</p>
-        <button style="font-size: 24px;" id="next-pattern">⧐</button>
-      </div>
-      <button style="width: 100%; margin-top: -4px;" id="record-pattern-button">Record Pattern</button>
     </div>
   </div>
   <div class="popup-box-container" id="session-manager-popup-box" style="

@@ -155,7 +155,7 @@ setupUOSynth(0).then(async () => {
             this._beatLength = 60000 / this._bpm;
             this._barLength = 24 * this._bpb;
             this._timeStep = this._beatLength / 24;
-            this._noteArray = [].fill([], 0, this._barLength);
+            this._noteArray = Array.from({ length: this._barLength }, () => []);
         }
 
         newNote(pitch, startTime, duration, type, name) {
@@ -167,7 +167,7 @@ setupUOSynth(0).then(async () => {
         }
 
         clear() {
-            this._noteArray = [].fill([], 0, this._barLength);
+            this._noteArray = Array.from({ length: this._barLength }, () => []);
         }
 
         copyPattern() {
@@ -228,7 +228,7 @@ setupUOSynth(0).then(async () => {
     let patternNumber = 0;
     let beatNumber = 1;
     let singleBarMode = false;
-    let loop = false;
+    let loop = true;
     let repeatRange = [0, 0];
 
     const playPauseSong = () => {
@@ -242,7 +242,19 @@ setupUOSynth(0).then(async () => {
     }
 
     const playSong = () => {
+        songTimeDisplay.innerHTML = `${barNumber + 1}:${beatNumber}:${(songTime % 24).toString().padStart(2, '0')}`;
         if (isPlayingSong && patternArray.length > 0) {
+            if (barNumber >= patternArray.length) {
+                barNumber = 0;
+                patternNumber = patternArray[barNumber];
+                patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+                const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
+                patternRackItems.forEach(element => {
+                    element.style.backgroundColor = "rgb(24, 24, 26)";
+                });
+                document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
+            }
+            console.log(barNumber)
             const currentNotes = patternStructure[patternArray[barNumber]]._noteArray[songTime];
             for (let index = 0; index < currentNotes.length; index++) {
                 const currentNote = currentNotes[index];
@@ -267,11 +279,24 @@ setupUOSynth(0).then(async () => {
 
             if (songTime >= patternStructure[patternArray[barNumber]]._barLength) {
                 barNumber += singleBarMode ? 0 : 1;
-                patternNumber = patternArray[barNumber];
                 songTime = 0;
             }
             beatNumber = Math.floor(songTime / 24) + 1;
             if (loop && !singleBarMode && barNumber > repeatRange[1]) barNumber = repeatRange[0];
+            else if (!loop && barNumber > repeatRange[1]) {
+                isPlayingSong = false;
+                barNumber = repeatRange[1];
+                playPauseBtn.innerHTML = "►";
+                console.log("pause")
+            }
+            patternNumber = patternArray[barNumber];
+
+            patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+            const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
+            patternRackItems.forEach(element => {
+                element.style.backgroundColor = "rgb(24, 24, 26)";
+            });
+            document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
         }
     };
 
@@ -280,6 +305,8 @@ setupUOSynth(0).then(async () => {
 
         if (isPlayingSong) setTimeout(recursivePlaySong, patternStructure[patternArray[barNumber]]?.timeStep || songSettings.timeStep);
     };
+
+    patternStructure[0] = new Pattern(songSettings.bpm, songSettings.bpb);
 
     const patternRack = document.getElementById("pattern-rack");
     const playPauseBtn = document.getElementById("play-pause-button");
@@ -295,9 +322,17 @@ setupUOSynth(0).then(async () => {
     const nextPatternBtn = document.getElementById("next-pattern");
     const patternNumberDisplay = document.getElementById("pattern-number-display");
     const recordPatternBtn = document.getElementById("record-pattern-button");
+    const songTimeDisplay = document.getElementById("song-time-display");
 
     playPauseBtn.addEventListener("pointerdown", () => {
         playPauseSong();
+        if (isPlayingSong) {
+            playPauseBtn.innerHTML = "||";
+            console.log("play")
+        } else {
+            playPauseBtn.innerHTML = "►";
+            console.log("pause")
+        }
     });
 
     prevBarBtn.addEventListener("pointerdown", () => {
@@ -327,6 +362,8 @@ setupUOSynth(0).then(async () => {
     addBtn.addEventListener("pointerdown", () => {
         barNumber++;
         patternArray.splice(barNumber, 0, patternNumber);
+        barNumber = clamp(barNumber, 0, patternArray.length - 1);
+        repeatRange[1] = patternArray.length - 1;
         let innerHTML = '';
         for (let i = 0; i < patternArray.length; i++) {
             const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
@@ -338,6 +375,7 @@ setupUOSynth(0).then(async () => {
     insBtn.addEventListener("pointerdown", () => {
         patternArray.splice(barNumber, 0, patternNumber);
         let innerHTML = '';
+        repeatRange[1] = patternArray.length - 1;
         for (let i = 0; i < patternArray.length; i++) {
             const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
             innerHTML += `<li><div class="pattern-rack-item" data-bar-number="${i}" style="background-color: ${backgroundcolor};"><p style="margin-top: 8px; margin-bottom: 0;">${patternArray[i]}</p></div></li>`
@@ -347,6 +385,8 @@ setupUOSynth(0).then(async () => {
 
     delBtn.addEventListener("pointerdown", () => {
         patternArray.splice(barNumber, 1);
+        barNumber = clamp(barNumber, 0, patternArray.length - 1);
+        repeatRange[1] = patternArray.length - 1;
         let innerHTML = '';
         for (let i = 0; i < patternArray.length; i++) {
             const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
@@ -370,11 +410,16 @@ setupUOSynth(0).then(async () => {
     prevPatternBtn.addEventListener("pointerdown", () => {
         if (patternNumber > 0) patternNumber--;
         patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+        if (!patternStructure[patternNumber]) {
+            patternStructure[patternNumber] = new Pattern(songSettings.bpm, songSettings.bpb);
+        }
     });
 
     nextPatternBtn.addEventListener("pointerdown", () => {
         patternNumber++;
-        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;if (!patternStructure[patternNumber]) {
+            patternStructure[patternNumber] = new Pattern(songSettings.bpm, songSettings.bpb);
+        }
     });
 
     patternNumberDisplay.addEventListener("wheel", (event) => {
@@ -397,7 +442,7 @@ setupUOSynth(0).then(async () => {
         let target = event.target;
         if (target.tagName == "P") target = target.parentElement;
         else if (target.tagName == "UL") return;
-        barNumber = target.getAttribute("data-bar-number");
+        barNumber = Number(target.getAttribute("data-bar-number"));
         target.style.backgroundColor = "rgb(94, 94, 114)";
         patternNumber = patternArray[barNumber];
         patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
@@ -827,6 +872,24 @@ setupUOSynth(0).then(async () => {
             });
         }
     });
+
+    let pianoRoolZoom = 3;
+
+    function toCSpace(p) {
+        x = p[0] / seqCvs.width;
+        y = p[1] / seqCvs.height;
+        return [x,y];
+    }
+
+    function fromCSpace(p) {
+        x = p[0] * seqCvs.width;
+        y = p[1] * seqCvs.height;
+        return [x,y];
+    }
+
+    function drawPianoRoll() {
+
+    }
 
     uoSynthNode.port.postMessage({ type: 'testing' });
 
@@ -1606,8 +1669,10 @@ setupUOSynth(0).then(async () => {
     });
 
     function resizeCanvas() {
-        seqCvs.width = 0.56 * window.innerWidth - 4;
-        seqCvs.height = 0.75 * window.innerHeight;
+        seqCvs.width = 0.56 * window.innerWidth - 24;
+        seqCvs.height = 0.75 * window.innerHeight - 24;
+
+        drawPianoRoll();
     }
 
     resizeCanvas();
