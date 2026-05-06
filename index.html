@@ -252,7 +252,7 @@
           align-items: center;">
           <select class="dropdown" id="grid-space-select" style="width: 128px; margin-top: 4px; margin-bottom: 4px;">
             <option value="3">÷3 </option>
-            <option value="4">÷4 </option>
+            <option value="4" selected>÷4 </option>
             <option value="6">÷6 </option>
             <option value="8">÷8 </option>
             <option value="12">÷12 </option>
@@ -266,7 +266,7 @@
             justify-content: space-evenly;
             align-items: center;">
             <button id="zoom-out">🔍︎</button>
-            <p style="margin: 0;">3 Octaves</p>
+            <p style="margin: 0;" id="octave-number-display">3 Octaves</p>
             <button id="zoom-in">🔎︎</button>
           </div>
           <button style="width: 128px;">Pattern Settings</button>
@@ -364,7 +364,7 @@
           display: flex;
           flex-direction: column;
           justify-content: space-between;">
-        <p class="info-paragraph" style="width: 100%; margin-bottom: 0px;">Oscillator Selection</p>
+        <p class="info-paragraph" style="width: 100%; margin-bottom: 0px;" id="oscillator-selection-text">Oscillator Selection</p>
         <select class="dropdown" id="osc-selection"></select>
         <div style="
           margin-top: 0px;

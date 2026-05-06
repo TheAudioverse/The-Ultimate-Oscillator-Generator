@@ -80,7 +80,7 @@ function toHMS(time) {
 
 setupUOSynth(0).then(async () => {
     const seqCvs = document.getElementById("sequencer-canvas");
-    const seqCtx = oscCvs.getContext("2d", { willReadFrequently: true });
+    const seqCtx = seqCvs.getContext("2d", { willReadFrequently: true });
     
     let selectedOscName = '';
     let fractalSynthesis = false;
@@ -166,6 +166,14 @@ setupUOSynth(0).then(async () => {
             this._noteArray[startTime].push(new Note(pitch, duration, 100, type, name));
         }
 
+        clearNote(pitch, startTime) {
+            for (let n = 0; n < this._noteArray[startTime].length; n++) {
+                if (this._noteArray[startTime][n]._pitch === pitch) {
+                    this._noteArray[startTime].splice(n, 1);
+                }
+            }
+        }
+
         clear() {
             this._noteArray = Array.from({ length: this._barLength }, () => []);
         }
@@ -235,6 +243,10 @@ setupUOSynth(0).then(async () => {
         if (isPlayingSong) {
             isPlayingSong = false;
             songTime = 0;
+            while (noteArray.length > 0) {
+                messageFunctions.removeVoice(noteArray[0].name, noteArray[0].freq);
+                noteArray.shift(0);
+            }
         } else {
             isPlayingSong = true;
             recursivePlaySong();
@@ -254,7 +266,6 @@ setupUOSynth(0).then(async () => {
                 });
                 document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
             }
-            console.log(barNumber)
             const currentNotes = patternStructure[patternArray[barNumber]]._noteArray[songTime];
             for (let index = 0; index < currentNotes.length; index++) {
                 const currentNote = currentNotes[index];
@@ -273,6 +284,8 @@ setupUOSynth(0).then(async () => {
                 currentNote.lifetime--;
                 if (currentNote.lifetime <= 0) {
                     messageFunctions.removeVoice(currentNote.name, currentNote.freq);
+                    noteArray.splice(index, 1);
+                    index--;
                 }
             }
             songTime += 1;
@@ -873,23 +886,110 @@ setupUOSynth(0).then(async () => {
         }
     });
 
-    let pianoRoolZoom = 3;
+    const mousePos = { X: 0, Y: 0 };
+    const oscillatorSelection = document.getElementById("osc-selection");
+    const osctaveScrollBar = document.getElementById("octave-scrollbar");
+    const gridSizeSelect = document.getElementById("grid-space-select");
+    const pianoRollZoomOut = document.getElementById("zoom-out");
+    const pianoRollZoomIn = document.getElementById("zoom-in");
+    const octaveNumberDisplay = document.getElementById("octave-number-display");
+    let oscillatorToPlace = null;
+    let pianoRollOctave = 5;
+    let pianoRollGridSize = 4;
+    let pianoRollZoom = 3;
+
+    oscillatorSelection.addEventListener("change", () => {
+        oscillatorToPlace = oscillatorSelection.value;
+    });
+    oscillatorToPlace = oscillatorSelection.value;
+
+    osctaveScrollBar.addEventListener("input", () => {
+        pianoRollOctave = osctaveScrollBar.value;
+    });
+    pianoRollOctave = osctaveScrollBar.value;
+
+    gridSizeSelect.addEventListener("change", () => {
+        pianoRollGridSize = Number(gridSizeSelect.value);
+    });
+    pianoRollGridSize = Number(gridSizeSelect.value);
+
+    pianoRollZoomOut.addEventListener("pointerdown", () => {
+        pianoRollZoom++;
+        octaveNumberDisplay.innerHTML = `${pianoRollZoom} Octaves`
+    });
+
+    pianoRollZoomIn.addEventListener("pointerdown", () => {
+        if (pianoRollZoom > 1) pianoRollZoom--;
+        octaveNumberDisplay.innerHTML = `${pianoRollZoom} Octaves`
+    });
+    octaveNumberDisplay.innerHTML = `${pianoRollZoom} Octaves`
 
     function toCSpace(p) {
-        x = p[0] / seqCvs.width;
-        y = p[1] / seqCvs.height;
+        x = Math.floor(p[0] / seqCvs.width * 24 * patternStructure[patternNumber]._bpb);
+        y = Math.floor((-p[1] / seqCvs.height + 1) * 12 * pianoRollZoom) + 12 * ((pianoRollOctave - 5) - Math.floor((pianoRollZoom - 1) / 2));
         return [x,y];
     }
 
     function fromCSpace(p) {
-        x = p[0] * seqCvs.width;
-        y = p[1] * seqCvs.height;
+        x = p[0] / (24 * patternStructure[patternNumber]._bpb) * seqCvs.width;
+        y = (1 - (p[1] - 12 * ((pianoRollOctave - 5) - Math.floor((pianoRollZoom - 1) / 2))) / (12 * pianoRollZoom)) * seqCvs.height;
         return [x,y];
     }
 
     function drawPianoRoll() {
+        for (let r = -12 * Math.floor((pianoRollZoom - 1) / 2); r < 12 * (pianoRollZoom - Math.floor((pianoRollZoom - 1) / 2)); r++) {
+            const rMod12 = ((r % 12) + 12) % 12;
+            if (rMod12 == 1 || rMod12 == 3 || rMod12 == 6 || rMod12 == 8 || rMod12 == 10) { 
+                seqCtx.fillStyle = "rgb(38,38,43)";
+            } else {
+                seqCtx.fillStyle = "rgb(43,43,46)";
+            }
 
+            seqCtx.fillRect(0, fromCSpace([0, r + 1 + 12 * (pianoRollOctave - 5)])[1], seqCvs.width, seqCvs.height / (12 * pianoRollZoom));
+        }
+
+        seqCtx.strokeStyle = "rgb(24,24,26)";
+        seqCtx.beginPath();
+        for (let l = 0; l < patternStructure[patternNumber]._bpb; l++) {
+            seqCtx.moveTo(fromCSpace([l * 24])[0], 0);
+            seqCtx.lineTo(fromCSpace([l * 24])[0], seqCvs.height);
+        }
+        seqCtx.stroke();
+
+        seqCtx.fillStyle = "rgb(0,185,185)";
+        for (let i = 0; i < patternStructure[patternNumber]._noteArray.length; i++) {
+            const currentNotes = patternStructure[patternNumber]._noteArray[i];
+            for (let n = 0; n < currentNotes.length; n++) {
+                seqCtx.fillRect(fromCSpace([i,currentNotes[n]._pitch])[0], fromCSpace([i,currentNotes[n]._pitch + 13])[1], fromCSpace([currentNotes[n]._duration,0])[0], seqCvs.height / (12 * pianoRollZoom));
+            }
+        }
+
+        seqCtx.fillStyle = "rgb(255,255,255)"
+        seqCtx.fillRect(fromCSpace([songTime,0])[0], 0, 2, seqCvs.height);
     }
+
+    function drawPianoRollAnimation() {
+        requestAnimationFrame(drawPianoRollAnimation);
+        seqCtx.clearRect(0,0,seqCvs.width,seqCvs.height);
+
+        if (showSequencer) drawPianoRoll();
+    }
+    drawPianoRollAnimation();
+
+    seqCvs.addEventListener('mousemove', (event) => {
+        mousePos.X = event.clientX;
+        mousePos.Y = event.clientY;
+    });
+
+    seqCvs.addEventListener("pointerdown", () => {
+        patternStructure[patternNumber].newNote(toCSpace([mousePos.X, mousePos.Y])[1] - 12, toCSpace([mousePos.X, mousePos.Y])[0], 24, "osc", oscillatorToPlace);
+    });
+
+    seqCvs.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+
+        patternStructure[patternNumber].clearNote(toCSpace([mousePos.X, mousePos.Y])[1] - 12, toCSpace([mousePos.X, mousePos.Y])[0]);
+    });
 
     uoSynthNode.port.postMessage({ type: 'testing' });
 
@@ -984,6 +1084,8 @@ setupUOSynth(0).then(async () => {
     document.getElementById("visualOscDrawType").addEventListener('change', (event) => {
         visualOscDrawType = event.target.value;
     });
+
+    visualOscDrawType = document.getElementById("visualOscDrawType").value;
 
     function setVoice(action, freq, velocity = 1) {
         if (action === 'add') {
@@ -1211,17 +1313,15 @@ setupUOSynth(0).then(async () => {
                     showSequencer = true;
                     document.getElementsByClassName("main")[0].style.display = "none";
                     document.getElementsByClassName("sequencer")[0].style.display = "flex";
-                    const oscSelection = document.getElementById("osc-selection");
 
                     uoSynthNode.port.addEventListener('message', (event) => {
                         if (event.data.type == "givenOscStructure") {
                             oscStructure = event.data.data;
                             let innerHTML = '';
                             Object.keys(oscStructure).forEach((_key) => {
-                                innerHTML += `<option value="${_key}">${_key}</option>
-                                `;
+                                innerHTML += `<option value="${_key}">${_key}</option>`;
                             });
-                            oscSelection.innerHTML = innerHTML;
+                            oscillatorSelection.innerHTML = innerHTML;
                         }
                     }, { once: true });
                     uoSynthNode.port.postMessage({ type: 'getOscStructure' });
@@ -1940,6 +2040,7 @@ function visualizerSelecter() {
         drawSpect();
     }
 }
+visualSelect = document.getElementById("visualization-select").value;
 if (!showSequencer) visualizerSelecter();
 
 document.getElementById("visualization-select").addEventListener("change", (event) => {
