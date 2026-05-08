@@ -142,7 +142,8 @@ class UOSynth extends AudioWorkletProcessor {
         super();
 
         this.port.onmessage = (event) => {
-            if (event.data.type != 'addVoice' && event.data.type != 'removeVoice' && event.data.type != 'changeOctave' && event.data.type != 'setOctave' && event.data.type != 'transpose' && event.data.type != 'setTransposition') console.log('From UOsc Synth: New Message from Main thread: ', event.data);
+            if (event.data.type != 'addVoice' && event.data.type != 'removeVoice' && event.data.type != 'changeOctave' && event.data.type != 'setOctave' && event.data.type != 'transpose' && event.data.type != 'setTransposition') {}
+            console.log('From UOsc Synth: New Message from Main thread: ', event.data);
 
             switch (event.data.type) {
                 case "testing":
@@ -230,7 +231,7 @@ class UOSynth extends AudioWorkletProcessor {
                         }
                     }
                     if (!already) {
-                        this._voices.push({ oscName: event.data.oscName, frequency: event.data.frequency, velocity: event.data.velocity, phase: 0, freeRunMaxVal: 1, sampleCounter: 0, removing: false, flag: 'osc' });
+                        this._voices.push({ oscName: event.data.oscName, id: event.data.id, frequency: event.data.frequency, velocity: event.data.velocity, phase: 0, freeRunMaxVal: 1, sampleCounter: 0, removing: false, flag: 'osc' });
                         calcVoicePartials(this._voices[this._voices.length - 1], this._oscStructure[event.data.oscName], (440 * Math.pow(2, (3 + event.data.frequency + this._transpose) / 12 + (this._octave - 5))) / this._oscStructure[event.data.oscName]._params._wavetype, 48000, {
                             fadeStart: 20000,
                             fadeEnd: 24000,
@@ -241,7 +242,7 @@ class UOSynth extends AudioWorkletProcessor {
                     break;
                 case "removeVoice":
                     for (let voice of this._voices) {
-                        if (voice.flag === 'osc' && voice.oscName === event.data.oscName && voice.frequency === event.data.frequency) {
+                        if (voice.flag === 'osc' && voice.id === event.data.id && voice.oscName === event.data.oscName && voice.frequency === event.data.frequency) {
                             voice.removing = true;
                             voice.sampleCounter = this._declickSampleTime;
                             break;
