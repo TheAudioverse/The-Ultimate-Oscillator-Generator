@@ -153,7 +153,7 @@ setupUOSynth(0).then(async () => {
             this._bpm = bpm;
             this._bpb = bpb;
             this._beatLength = 60000 / this._bpm;
-            this._barLength = 24 * this._bpb;
+            this._barLength = Math.ceil(24 * this._bpb);
             this._timeStep = this._beatLength / 24;
             this._noteArray = Array.from({ length: this._barLength }, () => []);
         }
@@ -165,19 +165,19 @@ setupUOSynth(0).then(async () => {
             }
             const newNoteIndex = this._noteArray[startTime].push(new Note(pitch, duration, velocity, type, name)) - 1;
 
-            for (let i = startTime + 1; i < startTime + duration; i++) {
+            for (let i = startTime + 1; i < Math.min(startTime + duration, this._barLength - 1); i++) {
                 const currentNotes = this._noteArray[i];
                 for (let n = 0; n < currentNotes.length; n++) {
                     const currentNote = currentNotes[n];
-                    if (currentNote._pitch == pitch) {
-                        this._noteArray[startTime][newNoteIndex].setDuration = i - startTime - 1;
+                    if (currentNote._pitch == pitch && currentNote._type === type && currentNote._name === name) {
+                        this._noteArray[startTime][newNoteIndex].duration = i - startTime - 1;
                         break;
                     }
                 } 
             }
 
-            if (startTime + duration > this._noteArray.length) {
-                this._noteArray[startTime][newNoteIndex].setDuration = i - startTime;
+            if (startTime + duration >= this._noteArray.length) {
+                this._noteArray[startTime][newNoteIndex].duration = (this._noteArray.length - startTime);
             }
 
             return newNoteIndex;
@@ -187,14 +187,14 @@ setupUOSynth(0).then(async () => {
             this._noteArray[startTime].splice(index, 1);
         }
 
-        detectNotes(pitch, time) {
+        detectNotes(pitch, time, type, name) {
             const notes = [];
 
             for (let i = 0; i < this._noteArray.length; i++) {
                 const currentNotes = this._noteArray[i];
                 for (let n = 0; n < currentNotes.length; n++) {
                     const currentNote = currentNotes[n];
-                    if (currentNote && currentNote._pitch == pitch && time >= i && time < i + currentNote._duration) {
+                    if (currentNote && currentNote._pitch == pitch && time >= i && time < i + currentNote._duration && currentNote._type === type && currentNote._name === name) {
                         notes.push({ startTime: i, note: n });
                     }
                 } 
@@ -230,22 +230,23 @@ setupUOSynth(0).then(async () => {
         }
 
         set setBPB(bpb) {
-            const oldBarLength = this._barLength;
             this._bpb = bpb;
-            this._barLength = 24 * this._bpb;
-            const oldToNewRatio = this._barLength / oldBarLength;
+            this._barLength = Math.ceil(24 * this._bpb);
 
-            const newNoteArray = [].fill([], 0, this._barLength);
-            for (let i = 0; i < this._noteArray.length; i++) {
-                const slot = this._noteArray[i];
-                for (let index = 0; i < slot.length; i++) {
-                    const currentNote = slot[index];
-                    this.newNote(currentNote._pitch, Math.round(i * oldToNewRatio), currentNote._duration, currentNote._type, currentNote._name);
-                    slot.splice(index, 1);
+            if (this._barLength > this._noteArray.length) {
+                while (this._noteArray.length < this._barLength) {
+                    this._noteArray.push([]);
+                }
+            } else if (this._barLength < this._noteArray.length) {
+                this._noteArray.length = this._barLength;
+                for (let i = 0; i < this._noteArray.length; i++) {
+                    const currentNotes = this._noteArray[i];
+                    for (let n = 0; n < currentNotes.length; n++) {
+                        const currentNote = currentNotes[n];
+                        if (i + currentNote._duration >= this._noteArray.length) currentNote.duration = (this._noteArray.length - i);
+                    }
                 }
             }
-
-            this._noteArray = newNoteArray;
         }
     }
 
@@ -258,15 +259,15 @@ setupUOSynth(0).then(async () => {
             this._name = name;
         }
 
-        set setPitch(pitch) {
+        set pitch(pitch) {
             this._pitch = pitch;
         }
 
-        set setDuration(duration) {
+        set duration(duration) {
             this._duration = duration;
         }
 
-        set setVelocity(velocity) {
+        set velocity(velocity) {
             this._velocity = velocity;
         }
     }
@@ -275,6 +276,7 @@ setupUOSynth(0).then(async () => {
     let songTime = 0;
     let barNumber = 0;
     let patternNumber = 0;
+    let previousPatternNumber = 0;
     let beatNumber = 1;
     let singleBarMode = false;
     let loop = true;
@@ -362,7 +364,7 @@ setupUOSynth(0).then(async () => {
     const recursivePlaySong = () => {
         playSong();
 
-        if (isPlayingSong) setTimeout(recursivePlaySong, patternStructure[patternArray[barNumber]]?.timeStep || songSettings.timeStep);
+        if (isPlayingSong) setTimeout(recursivePlaySong, patternStructure[patternArray[barNumber]]?._timeStep || songSettings.timeStep);
     };
 
     patternStructure[0] = new Pattern(songSettings.bpm, songSettings.bpb);
@@ -382,6 +384,26 @@ setupUOSynth(0).then(async () => {
     const patternNumberDisplay = document.getElementById("pattern-number-display");
     const recordPatternBtn = document.getElementById("record-pattern-button");
     const songTimeDisplay = document.getElementById("song-time-display");
+    const patternSettingsBtn = document.getElementById("pattern-settings-button");
+    const sectionTitle = document.getElementById("section-title");
+    let sectionTitle2 = "Song Settings"
+    const setBpm = document.getElementById("set-bpm");
+    const setBpb = document.getElementById("set-bpb");
+    const saveSettingsBtn = document.getElementById("save-settings-button");
+
+    async function updatePatternSettings() {
+        if (showSequencer && previousPatternNumber !== patternNumber) {
+            previousPatternNumber = patternNumber;
+            if (sectionTitle.innerHTML === `<span id="section-back-button">←</span> Pattern Settings`) {
+                setBpm.value = patternStructure[patternNumber]._bpm.toString();
+                setBpb.value = patternStructure[patternNumber]._bpb.toString();;
+            } else {
+                setBpm.value = songSettings.bpm;
+                setBpb.value = songSettings.bpb;
+            }
+        }
+    }
+    const updatePatternSettingsID = setInterval(updatePatternSettings, 10);
 
     playPauseBtn.addEventListener("pointerdown", () => {
         playPauseSong();
@@ -476,7 +498,8 @@ setupUOSynth(0).then(async () => {
 
     nextPatternBtn.addEventListener("pointerdown", () => {
         patternNumber++;
-        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;if (!patternStructure[patternNumber]) {
+        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+        if (!patternStructure[patternNumber]) {
             patternStructure[patternNumber] = new Pattern(songSettings.bpm, songSettings.bpb);
         }
     });
@@ -504,6 +527,35 @@ setupUOSynth(0).then(async () => {
         target.style.backgroundColor = "rgb(94, 94, 114)";
         patternNumber = patternArray[barNumber];
         patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+    });
+
+    saveSettingsBtn.addEventListener("pointerdown", () => {
+        switch (sectionTitle2) {
+            case "Song Settings":
+                songSettings.bpm = Number(setBpm.value);
+                songSettings.bpb = Number(setBpb.value);
+                songSettings.beatLength = 60000 / songSettings.bpm;
+                songSettings.barLength = songSettings.beatLength * songSettings.bpb;
+                songSettings.timeStep = songSettings.beatLength / 24;
+                break;
+            case "Pattern Settings":
+                patternStructure[patternNumber].setBPM = Number(setBpm.value);
+                patternStructure[patternNumber].setBPB = Number(setBpb.value);
+                console.log(patternStructure[patternNumber])
+                break;
+        }
+    });
+
+    patternSettingsBtn.addEventListener("pointerdown", () => {
+        sectionTitle.innerHTML = '<span id="section-back-button" class="link">←</span> Pattern Settings';
+        sectionTitle2 = "Pattern Settings"
+        const sectionBackBtn = document.getElementById("section-back-button");
+        sectionBackBtn.addEventListener("pointerdown", () => {
+            sectionTitle.innerHTML = "Song Settings";
+            sectionTitle2 = "Song Settings";
+            setBpm.value = songSettings.bpm;
+            setBpb.value = songSettings.bpb;
+        });
     });
     
     const synthParamsInputHTMLforUOSynth = [
@@ -933,7 +985,7 @@ setupUOSynth(0).then(async () => {
         }
     });
 
-    const mousePos = { X: 0, Y: 0 };
+    const mousePos = { X: 0, Y: 0, cX: 0, cY: 0 };
     const oscillatorSelection = document.getElementById("osc-selection");
     const osctaveScrollBar = document.getElementById("octave-scrollbar");
     const gridSizeSelect = document.getElementById("grid-space-select");
@@ -946,13 +998,14 @@ setupUOSynth(0).then(async () => {
     let pianoRollGridLength = 6;
     let pianoRollZoom = 3;
     let currentNoteSize = 1;
+    let moving = false;
     let resizing = false;
     let resizeDirection = "none";
-    const currentNotes = [];
-    let currentNoteToResize = null;
-    let currentNoteToResizeIndex = 0;
-    let currentNoteToResizeStartTime = 0;
-    let currentNoteToResizeEndTime = 0;
+    let currentNoteToEdit = null;
+    let currentNoteToEditIndex = 0;
+    let currentNoteToEditStartTime = 0;
+    let currentNoteToMoveDragTime = 0;
+    let currentNoteToEditEndTime = 0;
 
     oscillatorSelection.addEventListener("change", () => {
         oscillatorToPlace = oscillatorSelection.value;
@@ -1013,16 +1066,26 @@ setupUOSynth(0).then(async () => {
             seqCtx.lineTo(fromCSpace([l * 24])[0], seqCvs.height);
         }
         seqCtx.stroke();
+        seqCtx.strokeStyle = "rgb(38,38,43)";
+        seqCtx.beginPath();
+        for (let l = 1; l < pianoRollZoom; l++) {
+            seqCtx.moveTo(0, seqCvs.height * l / pianoRollZoom);
+            seqCtx.lineTo(seqCvs.width, seqCvs.height * l / pianoRollZoom);
+        }
+        seqCtx.stroke();
 
         seqCtx.fillStyle = "rgb(0,185,185)";
         for (let i = 0; i < patternStructure[patternNumber]._noteArray.length; i++) {
             const currentNotes = patternStructure[patternNumber]._noteArray[i];
             for (let n = 0; n < currentNotes.length; n++) {
-                seqCtx.fillRect(fromCSpace([i,currentNotes[n]._pitch])[0], fromCSpace([i,currentNotes[n]._pitch + 1])[1], fromCSpace([currentNotes[n]._duration,0])[0], seqCvs.height / (12 * pianoRollZoom));
+                const currentNote = currentNotes[n];
+                if (currentNote._name == oscillatorToPlace) seqCtx.fillStyle = "rgb(0,185,185)";
+                else seqCtx.fillStyle = "rgb(94, 94, 114)"
+                seqCtx.fillRect(fromCSpace([i,currentNote._pitch])[0], fromCSpace([i,currentNote._pitch + 1])[1], fromCSpace([currentNote._duration,0])[0], seqCvs.height / (12 * pianoRollZoom));
             }
         }
 
-        seqCtx.fillStyle = "rgb(255,255,255)"
+        seqCtx.fillStyle = "rgb(255,255,255)";
         seqCtx.fillRect(fromCSpace([songTime,0])[0], 0, 2, seqCvs.height);
     }
 
@@ -1038,65 +1101,83 @@ setupUOSynth(0).then(async () => {
         mousePos.X = event.clientX;
         mousePos.Y = event.clientY;
         let cSpaceMousePos = toCSpace([mousePos.X, mousePos.Y]);
+        mousePos.cX = cSpaceMousePos[0];
+        mousePos.cY = cSpaceMousePos[1];
 
-        if (resizing) {
+        if (moving) {
+            const newStartTime = Math.ceil((mousePos.cX - currentNoteToMoveDragTime) / pianoRollGridLength) * pianoRollGridLength;
+            patternStructure[patternNumber].clearNote(currentNoteToEditStartTime, currentNoteToEditIndex);
+            const newNoteIndex = patternStructure[patternNumber].newNote(mousePos.cY, newStartTime, currentNoteToEditEndTime > patternStructure[patternNumber]._barLength ? patternStructure[patternNumber]._barLength - newStartTime : currentNoteSize * pianoRollGridLength, currentNoteToEdit._velocity, currentNoteToEdit._type, currentNoteToEdit._name);
+            const noteInfo = patternStructure[patternNumber].detectNotes(mousePos.cY, newStartTime, "osc", oscillatorToPlace)[0];
+            const note = patternStructure[patternNumber]._noteArray[noteInfo.startTime][noteInfo.note];
+            currentNoteToEdit = note;
+            currentNoteToEditStartTime = newStartTime;
+            currentNoteToEditEndTime = currentNoteToEditStartTime + currentNoteToEdit._duration;
+            currentNoteToEditIndex = newNoteIndex;
+        } else if (!moving && resizing) {
             switch (resizeDirection) {
                 case "right":
-                    currentNoteSize = Math.max(Math.ceil(((cSpaceMousePos[0] - currentNoteToResizeEndTime) / (pianoRollGridLength))), 1);
-                    currentNoteToResize.setDuration = currentNoteSize * pianoRollGridLength;
+                    currentNoteSize = Math.max(Math.ceil(((mousePos.cX - currentNoteToEditStartTime) / (pianoRollGridLength))), 1);
+                    currentNoteToEdit.duration = currentNoteSize * pianoRollGridLength;
                     break;
                 case "left":
-                    const newStartTime = Math.floor(toCSpace([mousePos.X, mousePos.Y])[0] / pianoRollGridLength) * pianoRollGridLength;
-                    currentNoteSize = Math.max(Math.ceil(((currentNoteToResizeEndTime - cSpaceMousePos[0]) / (pianoRollGridLength))), 1);
-                    patternStructure[patternNumber].clearNote(currentNoteToResizeStartTime, currentNoteToResizeIndex);
-                    const newNoteIndex = patternStructure[patternNumber].newNote(currentNoteToResize._pitch, newStartTime, currentNoteSize * pianoRollGridLength, currentNoteToResize._velocity, currentNoteToResize._type, currentNoteToResize._name);
-                    const noteInfo = patternStructure[patternNumber].detectNotes(currentNoteToResize._pitch, newStartTime)[0];
+                    const newStartTime = Math.floor(mousePos.cX / pianoRollGridLength) * pianoRollGridLength;
+                    currentNoteSize = Math.max(Math.ceil(((currentNoteToEditEndTime - mousePos.cX) / (pianoRollGridLength))), 1);
+                    patternStructure[patternNumber].clearNote(currentNoteToEditStartTime, currentNoteToEditIndex);
+                    const newNoteIndex = patternStructure[patternNumber].newNote(currentNoteToEdit._pitch, newStartTime, currentNoteSize * pianoRollGridLength, currentNoteToEdit._velocity, currentNoteToEdit._type, currentNoteToEdit._name);
+                    const noteInfo = patternStructure[patternNumber].detectNotes(currentNoteToEdit._pitch, newStartTime, "osc", oscillatorToPlace)[0];
                     const note = patternStructure[patternNumber]._noteArray[noteInfo.startTime][noteInfo.note];
-                    currentNoteToResize = note;
-                    currentNoteToResizeStartTime = newStartTime;
-                    currentNoteToResizeIndex = newNoteIndex;
-                    currentNoteToResizeEndTime = newStartTime + currentNoteSize * pianoRollGridLength;
+                    currentNoteToEdit = note;
+                    currentNoteToEditStartTime = newStartTime;
+                    currentNoteToEditIndex = newNoteIndex;
+                    currentNoteToEditEndTime = newStartTime + currentNoteSize * pianoRollGridLength;
                     break;
             }
         }
-    });
-
-    seqCvs.addEventListener("mouseup", () => {
-        const noteInfo = patternStructure[patternNumber].detectNotes(toCSpace([mousePos.X, mousePos.Y])[1], toCSpace([mousePos.X, mousePos.Y])[0])[0];
-        if (!noteInfo && !resizing) patternStructure[patternNumber].newNote(toCSpace([mousePos.X, mousePos.Y])[1], Math.floor(toCSpace([mousePos.X, mousePos.Y])[0] / pianoRollGridLength) * pianoRollGridLength, currentNoteSize * pianoRollGridLength, 0.78125, "osc", oscillatorToPlace);
-
-        resizing = false;
-        console.log(currentNoteSize, currentNoteSize * pianoRollGridLength, pianoRollGridSize, pianoRollGridLength)
     });
 
     seqCvs.addEventListener("contextmenu", (event) => {
         event.preventDefault();
 
-        const noteInfo = patternStructure[patternNumber].detectNotes(toCSpace([mousePos.X, mousePos.Y])[1], toCSpace([mousePos.X, mousePos.Y])[0])[0];
+        const noteInfo = patternStructure[patternNumber].detectNotes(mousePos.cY, mousePos.cX, "osc", oscillatorToPlace)[0];
         if (noteInfo) patternStructure[patternNumber].clearNote(noteInfo.startTime, noteInfo.note);
     });
 
-    seqCvs.addEventListener("mousedown", (event) => {
-        const noteInfo = patternStructure[patternNumber].detectNotes(toCSpace([mousePos.X, mousePos.Y])[1], toCSpace([mousePos.X, mousePos.Y])[0])[0];
+    seqCvs.addEventListener("mousedown", () => {
+        let noteInfo = patternStructure[patternNumber].detectNotes(mousePos.cY, mousePos.cX, "osc", oscillatorToPlace)[0];
         let note;
         if (noteInfo) {
-            if (fromCSpace([noteInfo.startTime + note._duration,0])[0] - mousePos.X <= 8) {
-                note = patternStructure[patternNumber]._noteArray[noteInfo.startTime][noteInfo.note];
+            note = patternStructure[patternNumber]._noteArray[noteInfo.startTime][noteInfo.note];
+            currentNoteToEdit = note;
+            currentNoteToEditStartTime = noteInfo.startTime;
+            currentNoteToEditEndTime = noteInfo.startTime + note._duration;
+            currentNoteToEditIndex = noteInfo.note;
+            if (fromCSpace([noteInfo.startTime + note._duration,0])[0] - mousePos.X <= 8 && !moving) {
                 resizing = true;
-                currentNoteToResize = note;
-                currentNoteToResizeStartTime = noteInfo.startTime;
-                currentNoteToResizeEndTime = noteInfo.startTime + note._duration;
                 resizeDirection = "right";
-            } else if (mousePos.X - fromCSpace([noteInfo.startTime,0])[0] <= 8) {
-                note = patternStructure[patternNumber]._noteArray[noteInfo.startTime][noteInfo.note];
+            } else if (mousePos.X - fromCSpace([noteInfo.startTime,0])[0] <= 8 && !moving) {
                 resizing = true;
-                currentNoteToResize = note;
-                currentNoteToResizeStartTime = noteInfo.startTime;
-                currentNoteToResizeEndTime = noteInfo.startTime + note._duration;
                 resizeDirection = "left";
-                currentNoteToResizeIndex = noteInfo.note;
+            } else {
+                moving = true;
+                currentNoteToMoveDragTime = mousePos.cX - currentNoteToEditStartTime;
+                
             }
+        } else {
+            patternStructure[patternNumber].newNote(mousePos.cY, Math.floor(mousePos.cX / pianoRollGridLength) * pianoRollGridLength, currentNoteSize * pianoRollGridLength, 0.78125, "osc", oscillatorToPlace);
+            noteInfo = patternStructure[patternNumber].detectNotes(mousePos.cY, mousePos.cX, "osc", oscillatorToPlace)[0];
+            note = patternStructure[patternNumber]._noteArray[noteInfo.startTime][noteInfo.note];
+            currentNoteToEdit = note;
+            currentNoteToEditStartTime = noteInfo.startTime;
+            currentNoteToEditIndex = noteInfo.note;
+            moving = true;
+            currentNoteToMoveDragTime = mousePos.cX - currentNoteToEditStartTime;
         }
+    });
+
+    seqCvs.addEventListener("mouseup", () => {
+        moving = false;
+        resizing = false;
     });
 
     uoSynthNode.port.postMessage({ type: 'testing' });

@@ -142,8 +142,7 @@ class UOSynth extends AudioWorkletProcessor {
         super();
 
         this.port.onmessage = (event) => {
-            if (event.data.type != 'addVoice' && event.data.type != 'removeVoice' && event.data.type != 'changeOctave' && event.data.type != 'setOctave' && event.data.type != 'transpose' && event.data.type != 'setTransposition') {}
-            console.log('From UOsc Synth: New Message from Main thread: ', event.data);
+            if (event.data.type != 'addVoice' && event.data.type != 'removeVoice' && event.data.type != 'changeOctave' && event.data.type != 'setOctave' && event.data.type != 'transpose' && event.data.type != 'setTransposition') console.log('From UOsc Synth: New Message from Main thread: ', event.data);
 
             switch (event.data.type) {
                 case "testing":

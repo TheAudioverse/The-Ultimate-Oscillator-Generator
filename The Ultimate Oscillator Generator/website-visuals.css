@@ -48,10 +48,6 @@ ul {
     paint-order: stroke;
 }
 
-.link {
-    text-decoration: solid underline 2px;
-}
-
 .link:hover {
     color: rgb(0, 185, 185);
 }
@@ -76,7 +72,7 @@ div {
     margin: 0;
 }
 
-.synth-param-text-input, .synth-info-text-input{
+.synth-param-text-input, .synth-info-text-input, .sequencer-settings-number-input{
     height: 16px;
     font-size: 12px;
     text-align: center;

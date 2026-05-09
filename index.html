@@ -238,7 +238,7 @@
             flex-direction: column;
             flex-wrap: nowrap;
             justify-content: space-evenly;">
-            <input type="range" min="0" max="10" value="5" id="octave-scrollbar" style="width: 12px; height: 384px; margin: 0; writing-mode: vertical-lr; direction: rtl;">
+            <input type="range" min="0" max="10" value="5" id="octave-scrollbar" style="width: 12px; height: 384px; margin: 0; margin-left: 4px; writing-mode: vertical-lr; direction: rtl;">
           </div>
         </div>
         <div style="
@@ -269,7 +269,7 @@
             <p style="margin: 0;" id="octave-number-display">3 Octaves</p>
             <button id="zoom-in">🔎︎</button>
           </div>
-          <button style="width: 128px;">Pattern Settings</button>
+          <button id="pattern-settings-button" style="width: 128px;">Pattern Settings</button>
         </div>
       </div>
       <div style="
@@ -290,6 +290,41 @@
             display: flex;
             justify-content: center;">
             <button id="the-manual-button">The Manual</button>
+          </div>
+        </div>
+        <div style="
+          margin: 0;
+          height: 80%;
+          display: flex;
+          flex-direction: row;
+          flex-wrap: nowrap;
+          justify-content: space-around;">
+          <div class="scrollable-content" style="
+            width: 80%;
+            height: 100%;
+            background-color: rgb(38, 38, 43);
+            border-style: solid;
+            border-width: 2px;
+            border-radius: 8px;
+            border-color: rgb(0, 185, 185);">
+            <p id="section-title">Song Settings</p>
+            <div style="
+              width: 100%;
+              display: flex;
+              flex-direction: row;
+              flex-wrap: nowrap;
+              justify-content: space-evenly;">
+              <input id="set-bpm" type="number" placeholder="Beats per Minute" min="30" max="480" class="sequencer-settings-number-input" style="width: 37.5%;">
+              <input id="set-bpb" type="number" placeholder="Beats per Bar" min="1" step="any" class="sequencer-settings-number-input" style="width: 37.5%;">
+            </div>
+            <div style="
+              width: 100%;
+              display: flex;
+              flex-direction: row;
+              flex-wrap: nowrap;
+              justify-content: space-around;">
+              <button id="save-settings-button">Save Settings</button>
+            </div>
           </div>
         </div>
         <div style="
