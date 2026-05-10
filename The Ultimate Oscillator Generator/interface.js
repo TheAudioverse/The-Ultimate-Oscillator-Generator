@@ -1944,49 +1944,51 @@ setupUOSynth(0).then(async () => {
             reader.onload = (e) => {
                 const data = JSON.parse(e.target.result);
                 console.log(data);
-                if (data && data.oscillators && data.song) {
+                if (data && data.oscillators) {
                     messageFunctions.loadSession(data.oscillators);
 
-                    songSettings.bpm = data.song.bpm;
-                    songSettings.bpb = data.song.bpb;
-                    songSettings.beatLength = 60000 / songSettings.bpm;
-                    songSettings.barLength = songSettings.beatLength * songSettings.bpb;
-                    songSettings.timeStep = songSettings.beatLength / 24;
+                    if (data.song) {
+                        songSettings.bpm = data.song.bpm;
+                        songSettings.bpb = data.song.bpb;
+                        songSettings.beatLength = 60000 / songSettings.bpm;
+                        songSettings.barLength = songSettings.beatLength * songSettings.bpb;
+                        songSettings.timeStep = songSettings.beatLength / 24;
 
-                    let fileEfficient = true;
-                    let lock = false;
-                    patternStructure.length = 0;
-                    for (let i = 0; i < data.song.patternStructure.length; i++) {
-                        const currentPattern = data.song.patternStructure[i];
-                        const pattern = new Pattern(currentPattern.bpm, currentPattern.bpb);
-                        let currentTimeSlot = currentPattern.noteArray[0];
-                        for (let s = 0; s < currentPattern.noteArray.length; s++) {
-                            currentTimeSlot = currentPattern.noteArray[s];
-                            if (fileEfficient && !lock && typeof currentTimeSlot[0] !== 'number') fileEfficient = false;
-                            else lock = true;
-                            if (fileEfficient) {
-                                for (let n = 1; n < currentTimeSlot.length; n++) {
-                                    const parsedNote = stringifiedNoteParser(currentTimeSlot[n]);
-                                    pattern.newNote(parsedNote.pitch, currentTimeSlot[0], parsedNote.duration, parsedNote.velocity, parsedNote.type, parsedNote.name);
-                                }
-                            } else {
-                                for (let n = 0; n < currentTimeSlot.length; n++) {
-                                    const parsedNote = stringifiedNoteParser(currentTimeSlot[n]);
-                                    pattern.newNote(parsedNote.pitch, s, parsedNote.duration, parsedNote.velocity, parsedNote.type, parsedNote.name);
+                        let fileEfficient = true;
+                        patternStructure.length = 0;
+                        for (let i = 0; i < data.song.patternStructure.length; i++) {
+                            const currentPattern = data.song.patternStructure[i];
+                            const pattern = new Pattern(currentPattern.bpm, currentPattern.bpb);
+                            let currentTimeSlot = currentPattern.noteArray[0];
+                            for (let s = 0; s < currentPattern.noteArray.length; s++) {
+                                currentTimeSlot = currentPattern.noteArray[s];
+                                if (fileEfficient && typeof currentTimeSlot[0] !== 'number') fileEfficient = false;
+                                if (fileEfficient) {
+                                    for (let n = 1; n < currentTimeSlot.length; n++) {
+                                        const parsedNote = stringifiedNoteParser(currentTimeSlot[n]);
+                                        pattern.newNote(parsedNote.pitch, currentTimeSlot[0], parsedNote.duration, parsedNote.velocity, parsedNote.type, parsedNote.name);
+                                    }
+                                } else {
+                                    for (let n = 0; n < currentTimeSlot.length; n++) {
+                                        const parsedNote = stringifiedNoteParser(currentTimeSlot[n]);
+                                        pattern.newNote(parsedNote.pitch, s, parsedNote.duration, parsedNote.velocity, parsedNote.type, parsedNote.name);
+                                    }
                                 }
                             }
+                            patternStructure.push(pattern);
                         }
-                        patternStructure.push(pattern);
+                        patternArray.length = 0;
+                        patternArray.push(...data.song.patternOrder);
+                        repeatRange[1] = patternArray.length - 1;
+                        let innerHTML = '';
+                        for (let i = 0; i < patternArray.length; i++) {
+                            const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
+                            innerHTML += `<li><div class="pattern-rack-item" data-bar-number="${i}" style="background-color: ${backgroundcolor};"><p style="margin-top: 8px; margin-bottom: 0;">${patternArray[i]}</p></div></li>`
+                        }
+                        patternRack.innerHTML = innerHTML;
                     }
-                    patternArray.length = 0;
-                    patternArray.push(...data.song.patternOrder);
-                    repeatRange[1] = patternArray.length - 1;
-                    let innerHTML = '';
-                    for (let i = 0; i < patternArray.length; i++) {
-                        const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
-                        innerHTML += `<li><div class="pattern-rack-item" data-bar-number="${i}" style="background-color: ${backgroundcolor};"><p style="margin-top: 8px; margin-bottom: 0;">${patternArray[i]}</p></div></li>`
-                    }
-                    patternRack.innerHTML = innerHTML;
+                } else {
+                    alert("This JSON file is not of the correct format. The file should include an oscillators object and/or a song object.")
                 }
             };
             reader.readAsText(file);
