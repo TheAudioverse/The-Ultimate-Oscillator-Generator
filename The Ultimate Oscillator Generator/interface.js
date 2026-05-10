@@ -159,7 +159,7 @@ setupUOSynth(0).then(async () => {
         }
 
         newNote(pitch, startTime, duration, velocity, type, name) {
-            if (startTime >= this._barLength) {
+            if (startTime < 0 || startTime >= this._barLength) {
                 console.error("Note start time is out of bounds");
                 return;
             }
@@ -185,6 +185,17 @@ setupUOSynth(0).then(async () => {
 
         clearNote(startTime, index) {
             this._noteArray[startTime].splice(index, 1);
+        }
+
+        renameNote(startTime, index, newType, newName) {
+            const note = this._noteArray[startTime][index];
+            if (note) {
+                note.type = newType;
+                note.name = newName;
+            } else {
+                console.error("This note doesn't exist");
+                return;
+            }
         }
 
         detectNotes(pitch, time, type, name) {
@@ -269,6 +280,14 @@ setupUOSynth(0).then(async () => {
 
         set velocity(velocity) {
             this._velocity = velocity;
+        }
+
+        set type(type) {
+            this._type = type;
+        }
+
+        set name(name) {
+            this._name = name;
         }
     }
     
@@ -433,25 +452,29 @@ setupUOSynth(0).then(async () => {
     prevBarBtn.addEventListener("pointerdown", () => {
         barNumber--;
         if (barNumber < 0) barNumber = patternArray.length - 1;
-        patternNumber = patternArray[barNumber];
-        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
-        const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
-        patternRackItems.forEach(element => {
-            element.style.backgroundColor = "rgb(24, 24, 26)";
-        });
-        document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
+        if (patternArray.length > 0) {
+            patternNumber = patternArray[barNumber];
+            patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+            const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
+            patternRackItems.forEach(element => {
+                element.style.backgroundColor = "rgb(24, 24, 26)";
+            });
+            document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
+        }
     });
 
     nextBarBtn.addEventListener("pointerdown", () => {
         barNumber++;
         if (barNumber >= patternArray.length) barNumber = 0;
-        patternNumber = patternArray[barNumber];
-        patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
-        const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
-        patternRackItems.forEach(element => {
-            element.style.backgroundColor = "rgb(24, 24, 26)";
-        });
-        document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
+        if (patternArray.length > 0) {
+            patternNumber = patternArray[barNumber];
+            patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+            const patternRackItems = [...document.getElementsByClassName("pattern-rack-item")];
+            patternRackItems.forEach(element => {
+                element.style.backgroundColor = "rgb(24, 24, 26)";
+            });
+            document.querySelector(`[data-bar-number^="${barNumber}"]`).style.backgroundColor = "rgb(94, 94, 114)";
+        }
     });
 
     addBtn.addEventListener("pointerdown", () => {
@@ -523,9 +546,15 @@ setupUOSynth(0).then(async () => {
         if (event.deltaY > 0) {
             if (patternNumber > 0) patternNumber--;
             patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+            if (!patternStructure[patternNumber]) {
+                patternStructure[patternNumber] = new Pattern(songSettings.bpm, songSettings.bpb);
+            }
         } else if (event.deltaY < 0) {
             patternNumber++;
             patternNumberDisplay.innerHTML = `Pattern: ${patternNumber}`;
+            if (!patternStructure[patternNumber]) {
+                patternStructure[patternNumber] = new Pattern(songSettings.bpm, songSettings.bpb);
+            }
         }
     });
 
@@ -1926,7 +1955,7 @@ setupUOSynth(0).then(async () => {
 
                     let fileEfficient = true;
                     let lock = false;
-                    patternStructure.shift();
+                    patternStructure.length = 0;
                     for (let i = 0; i < data.song.patternStructure.length; i++) {
                         const currentPattern = data.song.patternStructure[i];
                         const pattern = new Pattern(currentPattern.bpm, currentPattern.bpb);
@@ -1949,6 +1978,7 @@ setupUOSynth(0).then(async () => {
                         }
                         patternStructure.push(pattern);
                     }
+                    patternArray.length = 0;
                     patternArray.push(...data.song.patternOrder);
                     repeatRange[1] = patternArray.length - 1;
                     let innerHTML = '';
@@ -1990,6 +2020,18 @@ setupUOSynth(0).then(async () => {
                         promptDiv.innerHTML = '<button id="session-manager-confirm-delete-button" class="session-manager-button" style="width: 80px;">Confirm</button> <button id="session-manager-cancel-delete-button" class="session-manager-button" style="width: 80px;">Cancel</button>';
                         document.getElementById('session-manager-confirm-delete-button').addEventListener('click', () => {
                             messageFunctions.deleteOsc(oscName, false);
+
+                            for (let p = 0; p < patternStructure.length; p++) {
+                                const pattern = patternStructure[p];
+                                for (let s = 0; s < pattern._noteArray.length; s++) {
+                                    const currentNotes = pattern._noteArray[s];
+                                    for (let n = 0; n < currentNotes.length; n++) {
+                                        const currentNote = currentNotes[n];
+                                        if (currentNote._name === oscName) pattern.clearNote(s, n);
+                                    }
+                                }
+                            }
+
                             event.target.parentElement.parentElement.remove();
                             promptText.innerText = 'Lorem ipsum ..';
                             promptDiv.innerHTML = '';
@@ -2004,6 +2046,18 @@ setupUOSynth(0).then(async () => {
                         document.getElementById('session-manager-confirm-rename-button').addEventListener('click', () => {
                             const newName = document.getElementById('session-manager-new-name-input').value.trim();
                             messageFunctions.renameOsc(oscName, newName);
+
+                            for (let p = 0; p < patternStructure.length; p++) {
+                                const pattern = patternStructure[p];
+                                for (let s = 0; s < pattern._noteArray.length; s++) {
+                                    const currentNotes = pattern._noteArray[s];
+                                    for (let n = 0; n < currentNotes.length; n++) {
+                                        const currentNote = currentNotes[n];
+                                        if (currentNote._name === oscName) pattern.renameNote(s, n, "osc", newName);
+                                    }
+                                }
+                            }
+
                             event.target.parentElement.parentElement.innerHTML = `<p style="width: 172px; margin-left: 8px;">${newName}</p> <div style="min-width: 130px;"> <button class="session-manager-button" name="session-manager-rename-button">Rename</button> <button class="session-manager-button" name="session-manager-delete-button">Delete</button> </div>`;
                             promptText.innerText = 'Lorem ipsum ..';
                             promptDiv.innerHTML = '';
@@ -2040,6 +2094,26 @@ setupUOSynth(0).then(async () => {
                         manualDiv.style.display = 'none';
                         drawOscVisualVersion++
                         oscCtx.clearRect(0, 0, oscCvs.width, oscCvs.height);
+
+                        songSettings.bpm = 120;
+                        songSettings.bpb = 4;
+
+                        songSettings.beatLength = 60000 / songSettings.bpm;
+                        songSettings.barLength = songSettings.beatLength * songSettings.bpb;
+                        songSettings.timeStep = songSettings.beatLength / 24;
+
+                        patternStructure.length = 0;
+                        patternStructure[0] = new Pattern(songSettings.bpm, songSettings.bpb);
+                        patternArray.length = 0;
+                        patternNumber = 0;
+
+                        repeatRange[1] = 0;
+                        let innerHTML = '';
+                        for (let i = 0; i < patternArray.length; i++) {
+                            const backgroundcolor = i == barNumber ? "rgb(94, 94, 114)" : "rgb(24, 24, 26)"
+                            innerHTML += `<li><div class="pattern-rack-item" data-bar-number="${i}" style="background-color: ${backgroundcolor};"><p style="margin-top: 8px; margin-bottom: 0;">${patternArray[i]}</p></div></li>`
+                        }
+                        patternRack.innerHTML = innerHTML;
                         
                         document.getElementsByName('synth-name-input')[0].value = '';
                         synthParamsInputHTMLforUOSynth[1].value = '';
